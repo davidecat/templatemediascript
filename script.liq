@@ -79,6 +79,7 @@ end
 
 def api_call(uri)
   result = http.get(uri)
+  log("DEBUG API Response from #{uri}: #{result}")
   let json.parse (j: {status: int, data: {icecast: {host: string, port: string, user: string, pass: string, mount: string, bitrate: string}, loop: string, asset_path: string}}) = result
   j
 end
