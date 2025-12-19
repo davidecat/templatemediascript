@@ -300,17 +300,110 @@ def init_playout_chain()
   ice_shutdown := [out.shutdown]
 end
 
+
+
+
 ################################################################################
-#                                STARTUP                                       #
+#                           HTTP ENDPOINTS                                    #
 ################################################################################
 
-thread.run(every=3600.0, fetch_prayer_times)
-init_playout_chain()
+# Restart endpoint - reinitializes the entire playout chain
+def req_restart(_, res)
+  log("INFO: Restart request received for user: #{user_id()}")
 
-# Harbor Fix: returns unit
-harbor.http.register(port=8080, "/restart_#{user_id()}",
-  fun(_,_) -> begin
-    log("INFO: Remote restart triggered.")
-    ignore(init_playout_chain())
+  try
+    # Retrieve and call icecast shutdown function
+    shutdown_func = list.hd(ice_shutdown())
+    shutdown_func()
+    log("INFO: Icecast output stopped successfully")
+
+    # Clear the shutdown list
+    ice_shutdown := []
+
+    # Re-initialize after delay to ensure clean shutdown
+    thread.run(delay=2.0, init_playout_chain)
+    log("INFO: Playout chain restart scheduled")
+
+    res.status_code(200)
+    res.status_message("SUCCESS: Script restart initiated for user: #{user_id()}")
+  catch err do
+    log("ERROR: Failed to restart script: #{err}")
+    res.status_code(500)
+    res.status_message("ERROR: Failed to restart script")
   end
-)
+end
+
+# Shutdown endpoint - gracefully shuts down the liquidsoap script
+def req_shutdown(_, res)
+  log("INFO: Shutdown request received for user: #{user_id()}")
+
+  # Schedule shutdown with delay to allow response
+  thread.run(delay=1.0, shutdown)
+
+  res.status_code(200)
+  res.status_message("SUCCESS: Shutdown initiated for user: #{user_id()}")
+end
+
+# Health check endpoint
+def req_health(_, res)
+  # Create JSON response string manually since Liquidsoap doesn't support object literals
+  status_json = "{" ^
+    "\"user_id\":\"#{user_id()}\"," ^
+    "\"current_loop\":\"#{current_loop()}\"," ^
+    "\"played_ad_count\":#{played_ad_count()}," ^
+    "\"icecast_host\":\"#{icecast_host()}\"," ^
+    "\"icecast_port\":#{icecast_port()}," ^
+    "\"icecast_mount\":\"#{icecast_mount()}\"," ^
+    "\"prayer_times_count\":#{list.length(prayer_times())}," ^
+    "\"prayer_enabled\":#{string_of(prayer_enabled())}," ^
+    "\"is_prayer_time\":#{is_prayer_time()}" ^
+    "}"
+
+  res.status_code(200)
+  res.content_type("application/json")
+  res.status_message(status_json)
+end
+
+# Register HTTP endpoints
+harbor.http.register(port=7000, method="GET", "/restart_#{user_id()}", req_restart)
+harbor.http.register(port=7000, method="GET", "/shutdown_#{user_id()}", req_shutdown)
+harbor.http.register(port=7000, method="GET", "/health_#{user_id()}", req_health)
+
+log("INFO: HTTP endpoints registered on port 7000")
+log("INFO: Available endpoints:")
+log("INFO:   - GET /restart_#{user_id()} - Restart playout chain")
+log("INFO:   - GET /shutdown_#{user_id()} - Shutdown script")
+log("INFO:   - GET /health_#{user_id()} - Health check")
+
+
+
+
+
+
+
+################################################################################
+#                           CLEANUP AND STARTUP                               #
+################################################################################
+
+# Cleanup function - removes PID file on shutdown
+def cleanup()
+  log("INFO: Performing cleanup operations...")
+  try
+    ignore(process.run("rm /home/oooomedia/liq_scripts/pids/#{user_id()}.pid"))
+    log("INFO: PID file removed successfully")
+  catch err do
+    log("WARNING: Failed to remove PID file: #{err}")
+  end
+end
+
+# Register cleanup function
+on_shutdown(cleanup)
+
+# Schedule prayer times refresh every hour
+thread.run(every=3600.0, fetch_prayer_times)
+log("INFO: Prayer times refresh scheduled every hour")
+
+# Start the playout chain
+  log("INFO: Starting main playout chain...")
+  init_playout_chain()
+  log("INFO: Liquidsoap scheduler fully initialized and running with prayer time support")
