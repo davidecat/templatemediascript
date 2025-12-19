@@ -111,21 +111,8 @@ def init_playout_chain()
   icecast_pass := j_init.data.icecast.pass
   fetch_prayer_times()
 
-  # Sources - Prefetch set to 1 to prevent background buffering issues [cite: 137, 138]
-  music = request.dynamic(id="music", prefetch=1, {
-    if current_loop() == "J" or current_loop() == "K" then
-      request.create("annotate:liq_cue_file=false,duration=5.0:sine:0.0")
-    else
-      add_track("music")
-    end
-  })
-  music_4m = request.dynamic(id="4minutesmusic", prefetch=1, {
-    if current_loop() == "J" or current_loop() == "K" then
-      add_track("4minutesmusic")
-    else
-      request.create("annotate:liq_cue_file=false,duration=5.0:sine:0.0")
-    end
-  })
+  music = request.dynamic(id="music", prefetch=1, {add_track("music")})
+  music_4m = request.dynamic(id="4minutesmusic", prefetch=1, {add_track("4minutesmusic")})
   ads = request.dynamic(id="ads", prefetch=1, {add_track("ad")})
 
   # Skip Logic: Clears the background music while ads are playing
