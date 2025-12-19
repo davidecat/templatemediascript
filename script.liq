@@ -114,7 +114,7 @@ def init_playout_chain()
   # Sources - Prefetch set to 1 to prevent background buffering issues [cite: 137, 138]
   music = request.dynamic(id="music", prefetch=1, {
     if current_loop() == "J" or current_loop() == "K" then
-      request.create("annotate:liq_cue_file=false,duration=5.0:say: ")
+      request.create("annotate:liq_cue_file=false,duration=5.0:sine:0.0")
     else
       add_track("music")
     end
@@ -123,7 +123,7 @@ def init_playout_chain()
     if current_loop() == "J" or current_loop() == "K" then
       add_track("4minutesmusic")
     else
-      request.create("annotate:liq_cue_file=false,duration=5.0:say: ")
+      request.create("annotate:liq_cue_file=false,duration=5.0:sine:0.0")
     end
   })
   ads = request.dynamic(id="ads", prefetch=1, {add_track("ad")})
