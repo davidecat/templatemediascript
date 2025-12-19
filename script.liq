@@ -115,7 +115,10 @@ def init_playout_chain()
   music = request.dynamic(id="music", prefetch=1, {add_track("music")})
   music_4m = request.dynamic(id="4minutesmusic", prefetch=1, {add_track("4minutesmusic")})
   ads = request.dynamic(id="ads", prefetch=2, {add_track("ad")})
-  ads = buffer(buffer=5.0, ads)
+# Refresh Logic: We wrap the ads in a buffer.
+  # 'buffer=10.0' prepares 10 seconds of audio in memory.
+  # 'max=12.0' ensures the buffer doesn't grow too large with old data.
+  ads = buffer(buffer=10.0, max=12.0, ads)
 
   # Skip Logic: Clears the background music while ads are playing
   def skip_music_on_ad_or_ad(_)
