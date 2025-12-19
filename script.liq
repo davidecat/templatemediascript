@@ -118,7 +118,7 @@ def init_playout_chain()
 # Refresh Logic: We wrap the ads in a buffer.
   # 'buffer=10.0' prepares 10 seconds of audio in memory.
   # 'max=12.0' ensures the buffer doesn't grow too large with old data.
-  ads = buffer(buffer=0.0, ads)
+  ads = buffer(buffer=16.0, ads)
 
   # Skip Logic: Clears the background music while ads are playing
   def skip_music_on_ad_or_ad(_)
