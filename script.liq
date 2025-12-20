@@ -132,37 +132,42 @@ end
 
 # 1. Define the recursive timer function
 def rec ad_trigger_loop()
-  t = time.local()
-  
-  # Trigger 10 seconds before the ad break
-  if t.sec == 50 then
-    if 4m or 9m or 14m or 19m or 24m or 29m or 34m or 39m or 44m or 49m or 54m or 59m then
-      
-      # Determine how many ads to fetch
-      num = if current_loop() == "A" then 4
-            elsif current_loop() == "B" then 2
-            elsif current_loop() == "J" or current_loop() == "K" then 4
-            else 3 end
+  # 'begin' is required here to group the following lines into one action
+  begin
+    t = time.local()
+    
+    # Trigger 10 seconds before the ad break
+    if t.sec == 50 then
+      if 4m or 9m or 14m or 19m or 24m or 29m or 34m or 39m or 44m or 49m or 54m or 59m then
+        
+        # Determine how many ads to fetch
+        num = if current_loop() == "A" then 4
+              elsif current_loop() == "B" then 2
+              elsif current_loop() == "J" or current_loop() == "K" then 6
+              else 3 end
 
-      log("INFO: Detected loop #{current_loop()}. Fetching #{num} ads.")
+        log("INFO: Detected loop #{current_loop()}. Fetching #{num} ads.")
 
-      # We use a helper function to loop because 'for' can be picky
-      def rec push_multiple(n)
-        if n > 0 then
-          fetch_ad_to_queue()
-          push_multiple(n - 1)
+        # Recursive helper to push multiple ads
+        def rec push_multiple(n)
+          if n > 0 then
+            begin
+              fetch_ad_to_queue()
+              push_multiple(n - 1)
+            end
+          end
         end
+        
+        push_multiple(num)
       end
-      push_multiple(num)
     end
-  end
 
-  # Return 1.0 to tell Liquidsoap to run this again in 1 second
-  1.0
+    # The function must return a float (1.0) for thread.run to loop
+    1.0
+  end
 end
 
-# 2. Start the timer using thread.run
-# This version doesn't use 'do' or 'every', avoiding the parse error
+# 2. Start the timer
 thread.run(ad_trigger_loop)
 
 
