@@ -130,74 +130,42 @@ def fetch_ad_to_queue()
   ads.push(req)
 end
 
-# 1. Define the recursive timer function
-def rec ad_trigger_loop()
-  # 'begin' is required here to group the following lines into one action
-  begin
-    t = time.local()
-    
-    # Trigger 10 seconds before the ad break
-    if t.sec == 50 then
-      if 4m or 9m or 14m or 19m or 24m or 29m or 34m or 39m or 44m or 49m or 54m or 59m then
-        
-        # Determine how many ads to fetch
-        num = if current_loop() == "A" then 4
-              elsif current_loop() == "B" then 2
-              elsif current_loop() == "J" or current_loop() == "K" then 6
-              else 3 end
+# Use thread.run with every parameter for periodic execution
+thread.run(every=1.0, fun() -> begin
+  t = time.local()
+  
+  # Trigger 10 seconds before the ad break
+  if t.sec == 50 then
+    if t.min == 4 or t.min == 9 or t.min == 14 or t.min == 19 or t.min == 24 or t.min == 29 or t.min == 34 or t.min == 39 or t.min == 44 or t.min == 49 or t.min == 54 or t.min == 59 then
+      
+      # Determine how many ads to fetch
+      num = if current_loop() == "A" then 4
+            elsif current_loop() == "B" then 2
+            elsif current_loop() == "J" or current_loop() == "K" then 4
+            else 3 end
 
-        log("INFO: Detected loop #{current_loop()}. Fetching #{num} ads.")
+      log("INFO: Detected loop #{current_loop()}. Fetching #{num} ads.")
 
-        # Recursive helper to push multiple ads
-        def rec push_multiple(n)
-          if n > 0 then
-            begin
-              fetch_ad_to_queue()
-              push_multiple(n - 1)
-            end
+      # Recursive helper to push multiple ads
+      def rec push_multiple(n)
+        if n > 0 then
+          begin
+            fetch_ad_to_queue()
+            push_multiple(n - 1)
           end
         end
-        
-        push_multiple(num)
       end
+      
+      push_multiple(num)
     end
-
-    # The function must return a float (1.0) for thread.run to loop
-    1.0
   end
-end
-
-# 2. Start the timer
-thread.run(ad_trigger_loop)
+end)
 
 
   # Skip Logic: Clears the background music while ads are playing
   def skip_music_on_ad_or_ad(_)
-    # We wait 2 seconds for the transition to finish before skipping [cite: 142]
-    thread.run(delay=2.0, fun() -> begin# Use the { ... } syntax for the 'every' function block
-every(1.0, {
-  t = time.local()
-  
-  if t.sec == 50 then
-    if 4m or 9m or 14m or 19m or 24m or 29m or 34m or 39m or 44m or 49m or 54m or 59m then
-      
-      # Determine number of ads
-      num_ads = 
-        if current_loop() == "A" then 4
-        elsif current_loop() == "B" then 2
-        elsif current_loop() == "J" or current_loop() == "K" then 4
-        else 3 
-        end
-
-      log("INFO: Detected loop #{current_loop()}. Fetching #{num_ads} ads.")
-
-      # Liquidsoap 'for' loop syntax uses { ... }
-      for i = 1 to num_ads do
-        fetch_ad_to_queue()
-      end
-    end
-  end
-})
+    # We wait 2 seconds for the transition to finish before skipping
+    thread.run(delay=2.0, fun() -> begin
       log("INFO: Flushing music background for fresh restart")
       if current_loop() == "J" or current_loop() == "K" then
         music_4m.skip()
