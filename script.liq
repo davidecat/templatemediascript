@@ -138,13 +138,14 @@ def init_playout_chain()
     end)
   end
   ads.on_track(skip_music_on_ad_or_ad)
-  current_music_source.on_track(fun(_) -> ads.skip())
+ 
 
   # Determine current music source based on loop type [cite: 146]
   current_music_source = switch(track_sensitive=false, [
     ({current_loop() == "J" or current_loop() == "K"}, music_4m),
     ({true}, music)
   ])
+   current_music_source.on_track(fun(_) -> ads.skip())
 
   # Ad Scheduler using specific predicates for all loops including J and K [cite: 147-167]
   ad_selector = switch(track_sensitive=true, all_predicates=true, [
