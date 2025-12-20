@@ -114,11 +114,16 @@ def init_playout_chain()
 
   music = request.dynamic(id="music", prefetch=1, {add_track("music")})
   music_4m = request.dynamic(id="4minutesmusic", prefetch=1, {add_track("4minutesmusic")})
-  ads = request.dynamic(id="ads", prefetch=1, {add_track("ad")})
+ # To this (List-based):
+  ads = request.dynamic(id="ads", prefetch=1, { [add_track("ad")] })
 # Refresh Logic: We wrap the ads in a buffer.
   # 'buffer=10.0' prepares 10 seconds of audio in memory.
   # 'max=12.0' ensures the buffer doesn't grow too large with old data.
-  ads = buffer(buffer=2.0, ads)
+  # ads = buffer(buffer=2.0, ads)
+  # def clear_ads_queue()
+  #   log("INFO: Manually emptying the ads list")
+  #   ads.skip()
+  # end
 
   # Skip Logic: Clears the background music while ads are playing
   def skip_music_on_ad_or_ad(_)
@@ -133,6 +138,7 @@ def init_playout_chain()
     end)
   end
   ads.on_track(skip_music_on_ad_or_ad)
+  current_music_source.on_track(fun(_) -> ads.skip())
 
   # Determine current music source based on loop type [cite: 146]
   current_music_source = switch(track_sensitive=false, [
@@ -276,6 +282,8 @@ def init_playout_chain()
       ({true}, current_music_source)
     ]
   )
+
+ 
 
   # Prayer Time Integration
   final_radio = switch(track_sensitive=false, [
