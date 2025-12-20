@@ -123,29 +123,29 @@ def init_playout_chain()
 # 1. Create the manual queue
 ads = request.queue(id="ads")
 
-# 2. The Fetcher Function
+# 1. The Fetcher Function (remains the same)
 def fetch_ad_to_queue()
   log("INFO: Fetching next ad in sequence from API...")
-  # We use the request from add_track directly
   req = add_track("ad")
   ads.push(req)
 end
 
-# 3. The Trigger: Checks every second if we need to fetch
-def check_for_ads()
+# 2. The Loop Logic
+# This function calls itself every 1 second
+def ad_timer_loop()
   t = time.local()
-  # Check if we are at the 50th second of any ad-scheduled minute
+  # Trigger fetch at the 50th second of the minute
   if t.sec == 50 then
     if 4m or 9m or 14m or 19m or 24m or 29m or 34m or 39m or 44m or 49m or 54m or 59m then
       fetch_ad_to_queue()
     end
   end
-  # Loop back every 1 second
-  1.0
+  # Schedule the next check in 1.0 second
+  thread.when({1.0}, ad_timer_loop)
 end
 
-# Start the background checker
-thread.run(check_for_ads)
+# Start the first loop
+ad_timer_loop()
 
 
   # Skip Logic: Clears the background music while ads are playing
