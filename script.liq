@@ -123,28 +123,29 @@ def init_playout_chain()
 # 1. Create the manual queue
 ads = request.queue(id="ads")
 
-# 1. The Fetcher Function (remains the same)
+# 1. Define the Fetcher
 def fetch_ad_to_queue()
   log("INFO: Fetching next ad in sequence from API...")
   req = add_track("ad")
   ads.push(req)
 end
 
-# 2. The Loop Logic
-# This function calls itself every 1 second
-def ad_timer_loop()
+# 2. Define the Recursive Loop (Notice the 'rec' keyword)
+def rec ad_timer_loop()
   t = time.local()
+  
   # Trigger fetch at the 50th second of the minute
   if t.sec == 50 then
     if 4m or 9m or 14m or 19m or 24m or 29m or 34m or 39m or 44m or 49m or 54m or 59m then
       fetch_ad_to_queue()
     end
   end
-  # Schedule the next check in 1.0 second
+
+  # Schedule the next check in 1 second
   thread.when({1.0}, ad_timer_loop)
 end
 
-# Start the first loop
+# 3. Start the loop
 ad_timer_loop()
 
 
