@@ -116,23 +116,34 @@ def init_playout_chain()
   music_4m = request.dynamic(id="4minutesmusic", prefetch=1, {add_track("4minutesmusic")})
  # To this (List-based):
   # Use prefetch=0. 
-# To make it 'ready' for the switch, we add a very small buffer.
-# 1. Create a manual queue. It only plays what we 'push' into it.
-  ads = request.queue(id="ads")
 
-# 2. Function to fetch 1 ad from your API and put it in the queue
+
+# 1. Create the manual queue
+ads = request.queue(id="ads")
+
+# 2. The Fetcher Function
 def fetch_ad_to_queue()
   log("INFO: Fetching next ad in sequence from API...")
+  # We use the request from add_track directly
   req = add_track("ad")
   ads.push(req)
 end
 
-# 3. Trigger the fetch 10 seconds BEFORE the ad break (at the 59th second)
-# This ensures the file is downloaded and ready for the 4m/59m mark.
-timer.calendar(second=50, { 
-  if 4m or 9m or 14m or 19m or 24m or 29m or 34m or 39m or 44m or 49m or 54m or 59m then
-    fetch_ad_to_queue()
+# 3. The Trigger: Checks every second if we need to fetch
+def check_for_ads()
+  t = time.local()
+  # Check if we are at the 50th second of any ad-scheduled minute
+  if t.sec == 50 then
+    if 4m or 9m or 14m or 19m or 24m or 29m or 34m or 39m or 44m or 49m or 54m or 59m then
+      fetch_ad_to_queue()
+    end
   end
+  # Loop back every 1 second
+  1.0
+end
+
+# Start the background checker
+thread.run(check_for_ads)
 })
 
 
