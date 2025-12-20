@@ -114,7 +114,7 @@ def init_playout_chain()
 
   music = request.dynamic(id="music", prefetch=1, {add_track("music")})
   music_4m = request.dynamic(id="4minutesmusic", prefetch=1, {add_track("4minutesmusic")})
-  ads = request.dynamic(id="ads", prefetch=1, {add_track("ad")})
+  ads = request.dynamic(id="ads", prefetch=0, conservative=true, {add_track("ad")})
 # Refresh Logic: We wrap the ads in a buffer.
   # 'buffer=10.0' prepares 10 seconds of audio in memory.
   # 'max=12.0' ensures the buffer doesn't grow too large with old data.
