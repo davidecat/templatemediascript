@@ -151,7 +151,30 @@ end
   # Skip Logic: Clears the background music while ads are playing
   def skip_music_on_ad_or_ad(_)
     # We wait 2 seconds for the transition to finish before skipping [cite: 142]
-    thread.run(delay=2.0, fun() -> begin
+    thread.run(delay=2.0, fun() -> begin# Use the { ... } syntax for the 'every' function block
+every(1.0, {
+  t = time.local()
+  
+  if t.sec == 50 then
+    if 4m or 9m or 14m or 19m or 24m or 29m or 34m or 39m or 44m or 49m or 54m or 59m then
+      
+      # Determine number of ads
+      num_ads = 
+        if current_loop() == "A" then 4
+        elsif current_loop() == "B" then 2
+        elsif current_loop() == "J" or current_loop() == "K" then 4
+        else 3 
+        end
+
+      log("INFO: Detected loop #{current_loop()}. Fetching #{num_ads} ads.")
+
+      # Liquidsoap 'for' loop syntax uses { ... }
+      for i = 1 to num_ads do
+        fetch_ad_to_queue()
+      end
+    end
+  end
+})
       log("INFO: Flushing music background for fresh restart")
       if current_loop() == "J" or current_loop() == "K" then
         music_4m.skip()
