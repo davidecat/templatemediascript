@@ -118,6 +118,8 @@ def init_playout_chain()
   # Use prefetch=0. 
 
 
+  # To make it 'ready' for the switch, we add a very small buffer.
+# 1. Create a manual queue. It only plays what we 'push' into it.
 # 1. Create the manual queue
 ads = request.queue(id="ads")
 
@@ -144,7 +146,6 @@ end
 
 # Start the background checker
 thread.run(check_for_ads)
-})
 
 
   # Skip Logic: Clears the background music while ads are playing
