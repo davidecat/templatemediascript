@@ -1,0 +1,24 @@
+This script, 'script.liq' will allow for the creation of an audio stream that is dynamically controlled via the oooomedia api.
+
+The script can be started with the following command
+
+liquidsoap script.liq -- <user_id> <daemonize - bool that defaults to true>
+
+As an example to start a station for user_1 that is daemonized you would use
+
+liqidsoap script.liq -- user_1
+
+To run in the terminal you can use
+
+liquidsoap script.liq -- user_1 false
+
+…..
+
+The script will open 2 endpoints when it is started, these are
+
+:7000/restart_<user_id> -- for user_1 this would be :7000/restart_user1
+:7000/shutdown_<user_id> -- for user_1 this would be :7000/shutdown_user1
+
+The restart endpoint will leave the script running , but shutdown the icecast output and then re-initiate the processing chain. It will  re-initiate the icecast settings , so can be used for changing icecast settings on a running stream.
+
+The shutdown endpoint will shutdown the liquidsoap script and remove the associated pid file.
