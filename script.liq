@@ -260,7 +260,7 @@ def init_playout_chain()
 
   # Final Sequential Stream with Fade Transition
   # Use track_sensitive=true to ensure ad blocks complete before switching back to music
-  radio_stream = switch(track_sensitive=true,
+  radio_stream = switch(track_sensitive=false,
     transitions=[fun(old, new) -> add([fade.out(duration=0.5, old), fade.in(duration=0.5, new)])],
     [
       ({source.is_ready(ad_selector)}, ad_selector),
