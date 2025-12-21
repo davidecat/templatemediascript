@@ -128,12 +128,8 @@ def fetch_ad_to_queue()
   try
     log("INFO: Fetching next ad in sequence from API...")
     req = add_track("ad")
-    if request.is_valid(req) then
-      ads.push(req)
-      log("INFO: Successfully added ad to queue")
-    else
-      log("ERROR: Invalid ad request received from API")
-    end
+    ads.push(req)
+    log("INFO: Successfully added ad to queue")
   catch err do
     log("ERROR: Failed to fetch ad: #{err}")
   end
