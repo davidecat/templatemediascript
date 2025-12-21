@@ -157,9 +157,6 @@ thread.run(every=1.0, fun() -> begin
 
       log("INFO: Detected loop #{current_loop()} at #{t.min}:#{t.sec}. Fetching #{num} ads for block.")
 
-      # Clear any existing ads in queue to ensure fresh block
-      ads.flush()
-      
       # Fetch all ads for this block in sequence
       def rec push_multiple(n, count)
         if n > 0 then
