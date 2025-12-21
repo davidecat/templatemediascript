@@ -114,7 +114,7 @@ def init_playout_chain()
 
   music = request.dynamic(id="music", prefetch=1, {add_track("music")})
   music_4m = request.dynamic(id="4minutesmusic", prefetch=1, {add_track("4minutesmusic")})
-  ads = request.dynamic(id="ads", prefetch=0, {add_track("ad")})
+  ads = request.dynamic(id="ads", prefetch=1, {add_track("ad")})
 
   # Skip Logic: Clears the background music while ads are playing
   def skip_music_on_ad_or_ad(_)
