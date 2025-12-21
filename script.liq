@@ -141,132 +141,117 @@ def init_playout_chain()
     ({true}, music)
   ])
 
-  # Ad Scheduler using specific predicates for all loops including J and K [cite: 147-167]
-  ad_selector = switch(track_sensitive=true, all_predicates=true, [
-      # Loops A, B, J, K (4 ads per 5 mins)
-      (predicate.at_most(4, {4m and (current_loop() == "A" or current_loop() == "B" or current_loop() == "J" or current_loop() == "K")}), ads),
-      (predicate.at_most(4, {4m15s and (current_loop() == "A" or current_loop() == "B" or current_loop() == "J" or current_loop() == "K")}), ads),
-      (predicate.at_most(4, {4m30s and (current_loop() == "A" or current_loop() == "B" or current_loop() == "J" or current_loop() == "K")}), ads),
-      (predicate.at_most(4, {4m45s and (current_loop() == "A" or current_loop() == "B" or current_loop() == "J" or current_loop() == "K")}), ads),
-      (predicate.at_most(4, {9m and (current_loop() == "A" or current_loop() == "B" or current_loop() == "J" or current_loop() == "K")}), ads),
-      (predicate.at_most(4, {9m15s and (current_loop() == "A" or current_loop() == "B" or current_loop() == "J" or current_loop() == "K")}), ads),
-      (predicate.at_most(4, {9m30s and (current_loop() == "A" or current_loop() == "B" or current_loop() == "J" or current_loop() == "K")}), ads),
-      (predicate.at_most(4, {9m45s and (current_loop() == "A" or current_loop() == "B" or current_loop() == "J" or current_loop() == "K")}), ads),
-      (predicate.at_most(4, {14m and (current_loop() == "A" or current_loop() == "B" or current_loop() == "J" or current_loop() == "K")}), ads),
-      (predicate.at_most(4, {14m15s and (current_loop() == "A" or current_loop() == "B" or current_loop() == "J" or current_loop() == "K")}), ads),
-      (predicate.at_most(4, {14m30s and (current_loop() == "A" or current_loop() == "B" or current_loop() == "J" or current_loop() == "K")}), ads),
-      (predicate.at_most(4, {14m45s and (current_loop() == "A" or current_loop() == "B" or current_loop() == "J" or current_loop() == "K")}), ads),
-      (predicate.at_most(4, {19m and (current_loop() == "A" or current_loop() == "B" or current_loop() == "J" or current_loop() == "K")}), ads),
-      (predicate.at_most(4, {19m15s and (current_loop() == "A" or current_loop() == "B" or current_loop() == "J" or current_loop() == "K")}), ads),
-      (predicate.at_most(4, {19m30s and (current_loop() == "A" or current_loop() == "B" or current_loop() == "J" or current_loop() == "K")}), ads),
-      (predicate.at_most(4, {19m45s and (current_loop() == "A" or current_loop() == "B" or current_loop() == "J" or current_loop() == "K")}), ads),
-      (predicate.at_most(4, {24m and (current_loop() == "A" or current_loop() == "B" or current_loop() == "J" or current_loop() == "K")}), ads),
-      (predicate.at_most(4, {24m15s and (current_loop() == "A" or current_loop() == "B" or current_loop() == "J" or current_loop() == "K")}), ads),
-      (predicate.at_most(4, {24m30s and (current_loop() == "A" or current_loop() == "B" or current_loop() == "J" or current_loop() == "K")}), ads),
-      (predicate.at_most(4, {24m45s and (current_loop() == "A" or current_loop() == "B" or current_loop() == "J" or current_loop() == "K")}), ads),
-      (predicate.at_most(4, {29m and (current_loop() == "A" or current_loop() == "B" or current_loop() == "J" or current_loop() == "K")}), ads),
-      (predicate.at_most(4, {29m15s and (current_loop() == "A" or current_loop() == "B" or current_loop() == "J" or current_loop() == "K")}), ads),
-      (predicate.at_most(4, {29m30s and (current_loop() == "A" or current_loop() == "B" or current_loop() == "J" or current_loop() == "K")}), ads),
-      (predicate.at_most(4, {29m45s and (current_loop() == "A" or current_loop() == "B" or current_loop() == "J" or current_loop() == "K")}), ads),
-      (predicate.at_most(4, {34m and (current_loop() == "A" or current_loop() == "B" or current_loop() == "J" or current_loop() == "K")}), ads),
-      (predicate.at_most(4, {34m15s and (current_loop() == "A" or current_loop() == "B" or current_loop() == "J" or current_loop() == "K")}), ads),
-      (predicate.at_most(4, {34m30s and (current_loop() == "A" or current_loop() == "B" or current_loop() == "J" or current_loop() == "K")}), ads),
-      (predicate.at_most(4, {34m45s and (current_loop() == "A" or current_loop() == "B" or current_loop() == "J" or current_loop() == "K")}), ads),
-      (predicate.at_most(4, {39m and (current_loop() == "A" or current_loop() == "B" or current_loop() == "J" or current_loop() == "K")}), ads),
-      (predicate.at_most(4, {39m15s and (current_loop() == "A" or current_loop() == "B" or current_loop() == "J" or current_loop() == "K")}), ads),
-      (predicate.at_most(4, {39m30s and (current_loop() == "A" or current_loop() == "B" or current_loop() == "J" or current_loop() == "K")}), ads),
-      (predicate.at_most(4, {39m45s and (current_loop() == "A" or current_loop() == "B" or current_loop() == "J" or current_loop() == "K")}), ads),
-      (predicate.at_most(4, {44m and (current_loop() == "A" or current_loop() == "B" or current_loop() == "J" or current_loop() == "K")}), ads),
-      (predicate.at_most(4, {44m15s and (current_loop() == "A" or current_loop() == "B" or current_loop() == "J" or current_loop() == "K")}), ads),
-      (predicate.at_most(4, {44m30s and (current_loop() == "A" or current_loop() == "B" or current_loop() == "J" or current_loop() == "K")}), ads),
-      (predicate.at_most(4, {44m45s and (current_loop() == "A" or current_loop() == "B" or current_loop() == "J" or current_loop() == "K")}), ads),
-      (predicate.at_most(4, {49m and (current_loop() == "A" or current_loop() == "B" or current_loop() == "J" or current_loop() == "K")}), ads),
-      (predicate.at_most(4, {49m15s and (current_loop() == "A" or current_loop() == "B" or current_loop() == "J" or current_loop() == "K")}), ads),
-      (predicate.at_most(4, {49m30s and (current_loop() == "A" or current_loop() == "B" or current_loop() == "J" or current_loop() == "K")}), ads),
-      (predicate.at_most(4, {49m45s and (current_loop() == "A" or current_loop() == "B" or current_loop() == "J" or current_loop() == "K")}), ads),
-      (predicate.at_most(4, {54m and (current_loop() == "A" or current_loop() == "B" or current_loop() == "J" or current_loop() == "K")}), ads),
-      (predicate.at_most(4, {54m15s and (current_loop() == "A" or current_loop() == "B" or current_loop() == "J" or current_loop() == "K")}), ads),
-      (predicate.at_most(4, {54m30s and (current_loop() == "A" or current_loop() == "B" or current_loop() == "J" or current_loop() == "K")}), ads),
-      (predicate.at_most(4, {54m45s and (current_loop() == "A" or current_loop() == "B" or current_loop() == "J" or current_loop() == "K")}), ads),
-      (predicate.at_most(4, {59m and (current_loop() == "A" or current_loop() == "B" or current_loop() == "J" or current_loop() == "K")}), ads),
-      (predicate.at_most(4, {59m15s and (current_loop() == "A" or current_loop() == "B" or current_loop() == "J" or current_loop() == "K")}), ads),
-      (predicate.at_most(4, {59m30s and (current_loop() == "A" or current_loop() == "B" or current_loop() == "J" or current_loop() == "K")}), ads),
-      (predicate.at_most(4, {59m45s and (current_loop() == "A" or current_loop() == "B" or current_loop() == "J" or current_loop() == "K")}), ads),
+  # Create ad blocks that play all ads together at the start of each ad break
+  # This prevents queue buildup and ensures proper music/ad alternation
+  
+  # Create queues for different ad block sizes
+  ads_4_queue = request.queue(id="ads_4_queue")
+  ads_3_queue = request.queue(id="ads_3_queue") 
+  ads_2_queue = request.queue(id="ads_2_queue")
+  
+  # Functions to populate queues with multiple ads
+  def populate_4_ads()
+    log("INFO: Populating 4-ad block")
+    ads_4_queue.push(add_track("ad"))
+    ads_4_queue.push(add_track("ad"))
+    ads_4_queue.push(add_track("ad"))
+    ads_4_queue.push(add_track("ad"))
+  end
+  
+  def populate_3_ads()
+    log("INFO: Populating 3-ad block")
+    ads_3_queue.push(add_track("ad"))
+    ads_3_queue.push(add_track("ad"))
+    ads_3_queue.push(add_track("ad"))
+  end
+  
+  def populate_2_ads()
+    log("INFO: Populating 2-ad block")
+    ads_2_queue.push(add_track("ad"))
+    ads_2_queue.push(add_track("ad"))
+  end
+  
+  # Track last populated minute to prevent duplicate population
+  last_populated_minute = ref(-1)
+  
+  # Thread to populate ad queues before ad breaks
+  thread.run(every=1.0, fun() -> begin
+    t = time.local()
+    
+    # Populate queues 10 seconds before ad breaks
+    if t.sec == 50 and last_populated_minute() != t.min then
+      if t.min == 4 or t.min == 9 or t.min == 14 or t.min == 19 or t.min == 24 or t.min == 29 or t.min == 34 or t.min == 39 or t.min == 44 or t.min == 49 or t.min == 54 or t.min == 59 then
+        last_populated_minute := t.min
+        
+        # Populate appropriate queue based on current loop
+        if current_loop() == "A" or current_loop() == "J" or current_loop() == "K" then
+          populate_4_ads()
+        elsif current_loop() == "B" then
+          populate_2_ads()
+        else
+          populate_3_ads()
+        end
+      end
+    end
+  end)
 
+  # Simplified ad scheduler - one trigger per ad break period
+  ad_selector = switch(track_sensitive=true, [
+      # Loops A, J, K (4 ads per 5 mins) - trigger only at start of each 5-minute block
+      ({4m and (current_loop() == "A" or current_loop() == "J" or current_loop() == "K")}, ads_4_queue),
+      ({9m and (current_loop() == "A" or current_loop() == "J" or current_loop() == "K")}, ads_4_queue),
+      ({14m and (current_loop() == "A" or current_loop() == "J" or current_loop() == "K")}, ads_4_queue),
+      ({19m and (current_loop() == "A" or current_loop() == "J" or current_loop() == "K")}, ads_4_queue),
+      ({24m and (current_loop() == "A" or current_loop() == "J" or current_loop() == "K")}, ads_4_queue),
+      ({29m and (current_loop() == "A" or current_loop() == "J" or current_loop() == "K")}, ads_4_queue),
+      ({34m and (current_loop() == "A" or current_loop() == "J" or current_loop() == "K")}, ads_4_queue),
+      ({39m and (current_loop() == "A" or current_loop() == "J" or current_loop() == "K")}, ads_4_queue),
+      ({44m and (current_loop() == "A" or current_loop() == "J" or current_loop() == "K")}, ads_4_queue),
+      ({49m and (current_loop() == "A" or current_loop() == "J" or current_loop() == "K")}, ads_4_queue),
+      ({54m and (current_loop() == "A" or current_loop() == "J" or current_loop() == "K")}, ads_4_queue),
+      ({59m and (current_loop() == "A" or current_loop() == "J" or current_loop() == "K")}, ads_4_queue),
 
+      # Loop B (2 ads per 5 mins)
+      ({4m and current_loop() == "B"}, ads_2_queue),
+      ({9m and current_loop() == "B"}, ads_2_queue),
+      ({14m and current_loop() == "B"}, ads_2_queue),
+      ({19m and current_loop() == "B"}, ads_2_queue),
+      ({24m and current_loop() == "B"}, ads_2_queue),
+      ({29m and current_loop() == "B"}, ads_2_queue),
+      ({34m and current_loop() == "B"}, ads_2_queue),
+      ({39m and current_loop() == "B"}, ads_2_queue),
+      ({44m and current_loop() == "B"}, ads_2_queue),
+      ({49m and current_loop() == "B"}, ads_2_queue),
+      ({54m and current_loop() == "B"}, ads_2_queue),
+      ({59m and current_loop() == "B"}, ads_2_queue),
 
       # Loop C (3 ads per 5 mins)
-      (predicate.at_most(3, {4m and current_loop() == "C"}), ads),
-      (predicate.at_most(3, {4m20s and current_loop() == "C"}), ads),
-      (predicate.at_most(3, {4m40s and current_loop() == "C"}), ads),
-      (predicate.at_most(3, {9m and current_loop() == "C"}), ads),
-      (predicate.at_most(3, {9m20s and current_loop() == "C"}), ads),
-      (predicate.at_most(3, {9m40s and current_loop() == "C"}), ads),
-      (predicate.at_most(3, {14m and current_loop() == "C"}), ads),
-      (predicate.at_most(3, {14m20s and current_loop() == "C"}), ads),
-      (predicate.at_most(3, {14m40s and current_loop() == "C"}), ads),
-      (predicate.at_most(3, {19m and current_loop() == "C"}), ads),
-      (predicate.at_most(3, {19m20s and current_loop() == "C"}), ads),
-      (predicate.at_most(3, {19m40s and current_loop() == "C"}), ads),
-      (predicate.at_most(3, {24m and current_loop() == "C"}), ads),
-      (predicate.at_most(3, {24m20s and current_loop() == "C"}), ads),
-      (predicate.at_most(3, {24m40s and current_loop() == "C"}), ads),
-      (predicate.at_most(3, {29m and current_loop() == "C"}), ads),
-      (predicate.at_most(3, {29m20s and current_loop() == "C"}), ads),
-      (predicate.at_most(3, {29m40s and current_loop() == "C"}), ads),
-      (predicate.at_most(3, {34m and current_loop() == "C"}), ads),
-      (predicate.at_most(3, {34m20s and current_loop() == "C"}), ads),
-      (predicate.at_most(3, {34m40s and current_loop() == "C"}), ads),
-      (predicate.at_most(3, {39m and current_loop() == "C"}), ads),
-      (predicate.at_most(3, {39m20s and current_loop() == "C"}), ads),
-      (predicate.at_most(3, {39m40s and current_loop() == "C"}), ads),
-      (predicate.at_most(3, {44m and current_loop() == "C"}), ads),
-      (predicate.at_most(3, {44m20s and current_loop() == "C"}), ads),
-      (predicate.at_most(3, {44m40s and current_loop() == "C"}), ads),
-      (predicate.at_most(3, {49m and current_loop() == "C"}), ads),
-      (predicate.at_most(3, {49m20s and current_loop() == "C"}), ads),
-      (predicate.at_most(3, {49m40s and current_loop() == "C"}), ads),
-      (predicate.at_most(3, {54m and current_loop() == "C"}), ads),
-      (predicate.at_most(3, {54m20s and current_loop() == "C"}), ads),
-      (predicate.at_most(3, {54m40s and current_loop() == "C"}), ads),
-      (predicate.at_most(3, {59m and current_loop() == "C"}), ads),
-      (predicate.at_most(3, {59m20s and current_loop() == "C"}), ads),
-      (predicate.at_most(3, {59m40s and current_loop() == "C"}), ads),
+      ({4m and current_loop() == "C"}, ads_3_queue),
+      ({9m and current_loop() == "C"}, ads_3_queue),
+      ({14m and current_loop() == "C"}, ads_3_queue),
+      ({19m and current_loop() == "C"}, ads_3_queue),
+      ({24m and current_loop() == "C"}, ads_3_queue),
+      ({29m and current_loop() == "C"}, ads_3_queue),
+      ({34m and current_loop() == "C"}, ads_3_queue),
+      ({39m and current_loop() == "C"}, ads_3_queue),
+      ({44m and current_loop() == "C"}, ads_3_queue),
+      ({49m and current_loop() == "C"}, ads_3_queue),
+      ({54m and current_loop() == "C"}, ads_3_queue),
+      ({59m and current_loop() == "C"}, ads_3_queue),
 
       # Loop D (3 ads per 10 mins)
-      (predicate.at_most(3, {9m and current_loop() == "D"}), ads),
-      (predicate.at_most(3, {9m20s and current_loop() == "D"}), ads),
-      (predicate.at_most(3, {9m40s and current_loop() == "D"}), ads),
-      (predicate.at_most(3, {19m and current_loop() == "D"}), ads),
-      (predicate.at_most(3, {19m20s and current_loop() == "D"}), ads),
-      (predicate.at_most(3, {19m40s and current_loop() == "D"}), ads),
-      (predicate.at_most(3, {29m and current_loop() == "D"}), ads),
-      (predicate.at_most(3, {29m20s and current_loop() == "D"}), ads),
-      (predicate.at_most(3, {29m40s and current_loop() == "D"}), ads),
-      (predicate.at_most(3, {39m and current_loop() == "D"}), ads),
-      (predicate.at_most(3, {39m20s and current_loop() == "D"}), ads),
-      (predicate.at_most(3, {39m40s and current_loop() == "D"}), ads),
-      (predicate.at_most(3, {49m and current_loop() == "D"}), ads),
-      (predicate.at_most(3, {49m20s and current_loop() == "D"}), ads),
-      (predicate.at_most(3, {49m40s and current_loop() == "D"}), ads),
-      (predicate.at_most(3, {59m and current_loop() == "D"}), ads),
-      (predicate.at_most(3, {59m20s and current_loop() == "D"}), ads),
-      (predicate.at_most(3, {59m40s and current_loop() == "D"}), ads),
-
+      ({9m and current_loop() == "D"}, ads_3_queue),
+      ({19m and current_loop() == "D"}, ads_3_queue),
+      ({29m and current_loop() == "D"}, ads_3_queue),
+      ({39m and current_loop() == "D"}, ads_3_queue),
+      ({49m and current_loop() == "D"}, ads_3_queue),
+      ({59m and current_loop() == "D"}, ads_3_queue),
 
       # Loop E (3 ads per 15 mins)
-      (predicate.at_most(3, {14m and current_loop() == "E"}), ads),
-      (predicate.at_most(3, {14m20s and current_loop() == "E"}), ads),
-      (predicate.at_most(3, {14m40s and current_loop() == "E"}), ads),
-      (predicate.at_most(3, {29m and current_loop() == "E"}), ads),
-      (predicate.at_most(3, {29m20s and current_loop() == "E"}), ads),
-      (predicate.at_most(3, {29m40s and current_loop() == "E"}), ads),
-      (predicate.at_most(3, {44m and current_loop() == "E"}), ads),
-      (predicate.at_most(3, {44m20s and current_loop() == "E"}), ads),
-      (predicate.at_most(3, {44m40s and current_loop() == "E"}), ads),
-      (predicate.at_most(3, {59m and current_loop() == "E"}), ads),
-      (predicate.at_most(3, {59m20s and current_loop() == "E"}), ads),
-      (predicate.at_most(3, {59m40s and current_loop() == "E"}), ads)
+      ({14m and current_loop() == "E"}, ads_3_queue),
+      ({29m and current_loop() == "E"}, ads_3_queue),
+      ({44m and current_loop() == "E"}, ads_3_queue),
+      ({59m and current_loop() == "E"}, ads_3_queue)
   ])
 
 
