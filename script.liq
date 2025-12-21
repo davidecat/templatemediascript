@@ -123,20 +123,35 @@ def init_playout_chain()
 # 1. Create the manual queue
 ads = request.queue(id="ads")
 
-# 1. The Fetcher Function (remains the same)
+# Enhanced ad fetcher with better logging and error handling
 def fetch_ad_to_queue()
-  log("INFO: Fetching next ad in sequence from API...")
-  req = add_track("ad")
-  ads.push(req)
+  try
+    log("INFO: Fetching next ad in sequence from API...")
+    req = add_track("ad")
+    if request.is_valid(req) then
+      ads.push(req)
+      log("INFO: Successfully added ad to queue")
+    else
+      log("ERROR: Invalid ad request received from API")
+    end
+  catch err do
+    log("ERROR: Failed to fetch ad: #{err}")
+  end
 end
+
+# Track when we last fetched ads to prevent duplicates
+last_ad_fetch_minute = ref(-1)
 
 # Use thread.run with every parameter for periodic execution
 thread.run(every=1.0, fun() -> begin
   t = time.local()
   
-  # Trigger 10 seconds before the ad break
-  if t.sec == 50 then
+  # Trigger 10 seconds before the ad break, but only once per minute
+  if t.sec == 50 and last_ad_fetch_minute() != t.min then
     if t.min == 4 or t.min == 9 or t.min == 14 or t.min == 19 or t.min == 24 or t.min == 29 or t.min == 34 or t.min == 39 or t.min == 44 or t.min == 49 or t.min == 54 or t.min == 59 then
+      
+      # Update last fetch minute to prevent duplicate fetching
+      last_ad_fetch_minute := t.min
       
       # Determine how many ads to fetch
       num = if current_loop() == "A" then 4
@@ -144,19 +159,26 @@ thread.run(every=1.0, fun() -> begin
             elsif current_loop() == "J" or current_loop() == "K" then 4
             else 3 end
 
-      log("INFO: Detected loop #{current_loop()}. Fetching #{num} ads.")
+      log("INFO: Detected loop #{current_loop()} at #{t.min}:#{t.sec}. Fetching #{num} ads for block.")
 
-      # Recursive helper to push multiple ads
-      def rec push_multiple(n)
+      # Clear any existing ads in queue to ensure fresh block
+      ads.flush()
+      
+      # Fetch all ads for this block in sequence
+      def rec push_multiple(n, count)
         if n > 0 then
           begin
+            log("INFO: Fetching ad #{count} of #{num} for block")
             fetch_ad_to_queue()
-            push_multiple(n - 1)
+            # Small delay between fetches to ensure different ads
+            thread.run(delay=0.1, fun() -> push_multiple(n - 1, count + 1))
           end
+        else
+          log("INFO: Successfully queued #{num} ads for block")
         end
       end
       
-      push_multiple(num)
+      push_multiple(num, 1)
     end
   end
 end)
@@ -317,7 +339,8 @@ ad_selector = ads
 
 
   # Final Sequential Stream with Fade Transition
-  radio_stream = switch(track_sensitive=false,
+  # Use track_sensitive=true to ensure ad blocks complete before switching back to music
+  radio_stream = switch(track_sensitive=true,
     transitions=[fun(old, new) -> add([fade.out(duration=0.5, old), fade.in(duration=0.5, new)])],
     [
       ({source.is_ready(ad_selector)}, ad_selector),
