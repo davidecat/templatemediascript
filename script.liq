@@ -157,21 +157,13 @@ thread.run(every=1.0, fun() -> begin
 
       log("INFO: Detected loop #{current_loop()} at #{t.min}:#{t.sec}. Fetching #{num} ads for block.")
 
-      # Fetch all ads for this block in sequence
-      def rec push_multiple(n, count)
-        if n > 0 then
-          begin
-            log("INFO: Fetching ad #{count} of #{num} for block")
-            fetch_ad_to_queue()
-            # Small delay between fetches to ensure different ads
-            thread.run(delay=0.1, fun() -> push_multiple(n - 1, count + 1))
-          end
-        else
-          log("INFO: Successfully queued #{num} ads for block")
-        end
-      end
+      # Fetch all ads for this block using a simple approach
+      if num >= 1 then fetch_ad_to_queue() end
+      if num >= 2 then fetch_ad_to_queue() end
+      if num >= 3 then fetch_ad_to_queue() end
+      if num >= 4 then fetch_ad_to_queue() end
       
-      push_multiple(num, 1)
+      log("INFO: Successfully queued #{num} ads for block")
     end
   end
 end)
