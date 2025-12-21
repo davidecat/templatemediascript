@@ -114,60 +114,11 @@ def init_playout_chain()
 
   music = request.dynamic(id="music", prefetch=1, {add_track("music")})
   music_4m = request.dynamic(id="4minutesmusic", prefetch=1, {add_track("4minutesmusic")})
- # To this (List-based):
-  # Use prefetch=0. 
-
-
-  # To make it 'ready' for the switch, we add a very small buffer.
-# 1. Create a manual queue. It only plays what we 'push' into it.
-# 1. Create the manual queue
-ads = request.queue(id="ads")
-
-# Enhanced ad fetcher with better logging and error handling
-def fetch_ad_to_queue()
-  try
-    log("INFO: Fetching next ad in sequence from API...")
-    req = add_track("ad")
-    ads.push(req)
-    log("INFO: Successfully added ad to queue")
-  catch err do
-    log("ERROR: Failed to fetch ad: #{err}")
-  end
-end
-
-# Track when we last fetched ads to prevent duplicates
-last_ad_fetch_minute = ref(-1)
-
-# Use thread.run with every parameter for periodic execution
-thread.run(every=1.0, fun() -> begin
-  t = time.local()
-  
-  # Trigger 10 seconds before the ad break, but only once per minute
-  if t.sec == 50 and last_ad_fetch_minute() != t.min then
-    if t.min == 4 or t.min == 9 or t.min == 14 or t.min == 19 or t.min == 24 or t.min == 29 or t.min == 34 or t.min == 39 or t.min == 44 or t.min == 49 or t.min == 54 or t.min == 59 then
-      
-      # Update last fetch minute to prevent duplicate fetching
-      last_ad_fetch_minute := t.min
-      
-      # Determine how many ads to fetch
-      num = if current_loop() == "A" then 4
-            elsif current_loop() == "B" then 2
-            elsif current_loop() == "J" or current_loop() == "K" then 4
-            else 3 end
-
-      log("INFO: Detected loop #{current_loop()} at #{t.min}:#{t.sec}. Fetching #{num} ads for block.")
-
-      # Fetch all ads for this block using a simple approach
-      if num >= 1 then fetch_ad_to_queue() end
-      if num >= 2 then fetch_ad_to_queue() end
-      if num >= 3 then fetch_ad_to_queue() end
-      if num >= 4 then fetch_ad_to_queue() end
-      
-      log("INFO: Successfully queued #{num} ads for block")
-    end
-  end
-end)
-
+  ads = request.dynamic(id="ads", prefetch=1, {add_track("ad")})
+# Refresh Logic: We wrap the ads in a buffer.
+  # 'buffer=10.0' prepares 10 seconds of audio in memory.
+  # 'max=12.0' ensures the buffer doesn't grow too large with old data.
+  ads = buffer(buffer=16.0, ads)
 
   # Skip Logic: Clears the background music while ads are playing
   def skip_music_on_ad_or_ad(_)
