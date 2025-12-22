@@ -87,6 +87,12 @@ end
 def add_track(stream)
   j = api_call(base_uri()^"/#{stream}")
   current_loop := j.data.loop
+
+ # Log ad file names specifically
+  if stream == "ad" then
+    log("INFO: Prefetching ad file: #{j.data.asset_path}")
+  end
+
   # CRITICAL: Force start at 0.0 and ignore blank skipping
   track_uri = if stream == "music" or stream == "4minutesmusic" then
     'autocue:annotate:liq_cue_in=0.0,liq_blankskip=0.0,liq_cue_file=false:'^j.data.asset_path
