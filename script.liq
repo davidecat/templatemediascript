@@ -279,11 +279,26 @@ def init_playout_chain()
     ]
   )
 
+ # ============================================================================
+  # AUDIO ENHANCEMENT
+  # ============================================================================
+  
+  # Normalize audio levels
+    radio_stream = normalize(target=0., window=0.03, gain_min=-12., gain_max=0., radio_stream)
+  
+  # Apply dynamic range compression
+    radio_stream = compress.exponential(mu=1.0, radio_stream)
+  log("INFO: Audio normalization and compression applied")
+
+
   # Prayer Time Integration
   final_radio = switch(track_sensitive=false, [
     ({prayer_enabled() and is_prayer_time()}, blank(duration=2.0)),
     ({true}, radio_stream)
   ])
+
+
+
 
   # Output to Icecast
   out = output.icecast(%mp3(bitrate=int_of_string(icecast_bitrate())),
