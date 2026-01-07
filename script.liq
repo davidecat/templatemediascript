@@ -28,6 +28,11 @@ last_skip_loop = ref("")
 prayer_times = ref([])
 prayer_enabled = ref(true)
 
+# EQ Configuration Variables
+eq_preset = ref("flat")
+eq_config_file = "/home/oooomedia/liq_scripts/configs/#{user_id()}_eq.conf"
+eq_available = ref(true)
+
 # Icecast Variables
 icecast_host = ref("")
 icecast_port = ref(8000)
@@ -40,6 +45,119 @@ ice_shutdown = ref([])
 ################################################################################
 #                              CORE FUNCTIONS                                  #
 ################################################################################
+
+# EQ Preset Definitions with 10-band graphic EQ parameters
+# Frequencies: 31, 62, 125, 250, 500, 1k, 2k, 4k, 8k, 16k Hz
+def get_eq_preset_params(preset_name)
+  if preset_name == "flat" then
+    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+  elsif preset_name == "vocal_boost" then
+    [0.0, 0.0, 0.0, 1.0, 2.0, 3.0, 2.0, 1.0, 0.0, 0.0]
+  elsif preset_name == "bass_heavy" then
+    [6.0, 4.0, 2.0, 0.0, -1.0, -1.0, 0.0, 1.0, 2.0, 1.0]
+  elsif preset_name == "bright" then
+    [0.0, 0.0, 0.0, 0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 4.0]
+  elsif preset_name == "warm" then
+    [3.0, 2.0, 1.0, 0.0, 0.0, 0.0, -1.0, -1.0, -2.0, -2.0]
+  elsif preset_name == "radio_classic" then
+    [1.0, 1.0, 0.0, 1.0, 2.0, 3.0, 2.0, 1.0, 0.0, -1.0]
+  elsif preset_name == "pop" then
+    [4.0, 2.0, 0.0, -1.0, -1.0, 0.0, 1.0, 2.0, 4.0, 3.0]
+  elsif preset_name == "rock" then
+    [3.0, 1.0, 0.0, 1.0, 2.0, 1.0, 0.0, 1.0, 3.0, 2.0]
+  elsif preset_name == "classical" then
+    [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 2.0]
+  else
+    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+  end
+end
+
+# Load EQ preset from config file
+def load_eq_preset()
+  try
+    if file.exists(eq_config_file) then
+      content = file.contents(eq_config_file)
+      preset = string.trim(content)
+      if list.mem(preset, ["flat", "vocal_boost", "bass_heavy", "bright", "warm", "radio_classic", "pop", "rock", "classical"]) then
+        eq_preset := preset
+        log("INFO: EQ preset loaded: #{preset}")
+      else
+        log("WARNING: Invalid EQ preset in config file, using flat")
+        eq_preset := "flat"
+      end
+    else
+      log("INFO: No EQ config file found, using default preset: flat")
+      eq_preset := "flat"
+    end
+  catch err do
+    log("ERROR: Failed to load EQ preset: #{err}, using flat")
+    eq_preset := "flat"
+  end
+end
+
+# Save EQ preset to config file
+def save_eq_preset()
+  try
+    # Ensure config directory exists
+    ignore(process.run("mkdir -p /home/oooomedia/liq_scripts/configs"))
+    file.write(data=eq_preset(), eq_config_file)
+    log("INFO: EQ preset saved: #{eq_preset()}")
+  catch err do
+    log("ERROR: Failed to save EQ preset: #{err}")
+  end
+end
+
+# Apply EQ to audio stream using LADSPA plugin
+def apply_eq_to_stream(source)
+  if not eq_available() then
+    log("WARNING: EQ not available, bypassing")
+    source
+  else
+    try
+      preset_params = get_eq_preset_params(eq_preset())
+      
+      # Apply 10-band EQ using TAP Equalizer plugin
+      # TAP Equalizer/BW has 10 bands at standard frequencies
+      eq_source = ladspa(
+        plugin="tap_equalizer_bw",
+        [
+          ("band_1_gain", list.nth(preset_params, 0)),   # 31 Hz
+          ("band_2_gain", list.nth(preset_params, 1)),   # 62 Hz  
+          ("band_3_gain", list.nth(preset_params, 2)),   # 125 Hz
+          ("band_4_gain", list.nth(preset_params, 3)),   # 250 Hz
+          ("band_5_gain", list.nth(preset_params, 4)),   # 500 Hz
+          ("band_6_gain", list.nth(preset_params, 5)),   # 1 kHz
+          ("band_7_gain", list.nth(preset_params, 6)),   # 2 kHz
+          ("band_8_gain", list.nth(preset_params, 7)),   # 4 kHz
+          ("band_9_gain", list.nth(preset_params, 8)),   # 8 kHz
+          ("band_10_gain", list.nth(preset_params, 9))   # 16 kHz
+        ],
+        source
+      )
+      
+      log("INFO: EQ applied with preset: #{eq_preset()}")
+      eq_source
+    catch err do
+      log("ERROR: EQ plugin failed: #{err}, bypassing EQ")
+      eq_available := false
+      source
+    end
+  end
+end
+
+# Test EQ plugin availability
+def test_eq_availability()
+  try
+    test_source = sine(440.0, duration=0.1)
+    ignore(ladspa(plugin="tap_equalizer_bw", [], test_source))
+    eq_available := true
+    log("INFO: EQ plugin (TAP Equalizer) available and working")
+  catch err do
+    eq_available := false
+    log("WARNING: EQ plugin not available: #{err}")
+    log("WARNING: Install with: sudo apt-get install tap-plugins")
+  end
+end
 
 def fetch_prayer_times()
   try
@@ -117,6 +235,10 @@ def init_playout_chain()
   icecast_user := j_init.data.icecast.user
   icecast_pass := j_init.data.icecast.pass
   fetch_prayer_times()
+  
+  # Initialize EQ system
+  test_eq_availability()
+  load_eq_preset()
 
   music = request.dynamic(id="music", prefetch=1, {add_track("music")})
   music_4m = request.dynamic(id="4minutesmusic", prefetch=1, {add_track("4minutesmusic")})
@@ -297,14 +419,19 @@ def init_playout_chain()
     ({true}, radio_stream)
   ])
 
-
-
+  # ============================================================================
+  # EQUALIZER APPLICATION
+  # ============================================================================
+  
+  # Apply EQ to final output (after all processing, before Icecast)
+  final_radio_eq = apply_eq_to_stream(final_radio)
+  log("INFO: EQ processing applied to final output")
 
   # Output to Icecast
   out = output.icecast(%mp3(bitrate=int_of_string(icecast_bitrate())),
     host=icecast_host(), port=icecast_port(), mount=icecast_mount(),
     user=icecast_user(), password=icecast_pass(),
-    fallible=true, final_radio)
+    fallible=true, final_radio_eq)
 
   ice_shutdown := [out.shutdown]
 end
@@ -353,6 +480,67 @@ def req_shutdown(_, res)
   res.status_message("SUCCESS: Shutdown initiated for user: #{user_id()}")
 end
 
+# EQ preset control endpoint
+def req_eq_preset(req, res)
+  method = req.method()
+  
+  if method == "GET" then
+    # Return current preset and available presets
+    eq_json = "{" ^
+      "\"current_preset\":\"#{eq_preset()}\"," ^
+      "\"available_presets\":[\"flat\",\"vocal_boost\",\"bass_heavy\",\"bright\",\"warm\",\"radio_classic\",\"pop\",\"rock\",\"classical\"]," ^
+      "\"eq_available\":#{string_of(eq_available())}" ^
+      "}"
+    
+    res.status_code(200)
+    res.content_type("application/json")
+    res.status_message(eq_json)
+  elsif method == "POST" then
+    # Change EQ preset
+    try
+      preset_param = url.split_args(req.query())["preset"]
+      valid_presets = ["flat", "vocal_boost", "bass_heavy", "bright", "warm", "radio_classic", "pop", "rock", "classical"]
+      
+      if list.mem(preset_param, valid_presets) then
+        eq_preset := preset_param
+        save_eq_preset()
+        log("INFO: EQ preset changed to: #{preset_param}")
+        
+        response_json = "{" ^
+          "\"status\":\"success\"," ^
+          "\"message\":\"EQ preset changed to #{preset_param}\"," ^
+          "\"current_preset\":\"#{eq_preset()}\"" ^
+          "}"
+        
+        res.status_code(200)
+        res.content_type("application/json")
+        res.status_message(response_json)
+      else
+        error_json = "{" ^
+          "\"status\":\"error\"," ^
+          "\"message\":\"Invalid preset. Available: flat, vocal_boost, bass_heavy, bright, warm, radio_classic, pop, rock, classical\"" ^
+          "}"
+        
+        res.status_code(400)
+        res.content_type("application/json")
+        res.status_message(error_json)
+      end
+    catch err do
+      error_json = "{" ^
+        "\"status\":\"error\"," ^
+        "\"message\":\"Failed to change EQ preset: #{err}\"" ^
+        "}"
+      
+      res.status_code(500)
+      res.content_type("application/json")
+      res.status_message(error_json)
+    end
+  else
+    res.status_code(405)
+    res.status_message("Method not allowed")
+  end
+end
+
 # Health check endpoint
 def req_health(_, res)
   # Create JSON response string manually since Liquidsoap doesn't support object literals
@@ -365,7 +553,9 @@ def req_health(_, res)
     "\"icecast_mount\":\"#{icecast_mount()}\"," ^
     "\"prayer_times_count\":#{list.length(prayer_times())}," ^
     "\"prayer_enabled\":#{string_of(prayer_enabled())}," ^
-    "\"is_prayer_time\":#{is_prayer_time()}" ^
+    "\"is_prayer_time\":#{is_prayer_time()}," ^
+    "\"eq_preset\":\"#{eq_preset()}\"," ^
+    "\"eq_available\":#{string_of(eq_available())}" ^
     "}"
 
   res.status_code(200)
@@ -377,12 +567,17 @@ end
 harbor.http.register(port=7000, method="GET", "/restart_#{user_id()}", req_restart)
 harbor.http.register(port=7000, method="GET", "/shutdown_#{user_id()}", req_shutdown)
 harbor.http.register(port=7000, method="GET", "/health_#{user_id()}", req_health)
+harbor.http.register(port=7000, method="GET", "/eq_preset_#{user_id()}", req_eq_preset)
+harbor.http.register(port=7000, method="POST", "/eq_preset_#{user_id()}", req_eq_preset)
 
 log("INFO: HTTP endpoints registered on port 7000")
 log("INFO: Available endpoints:")
 log("INFO:   - GET /restart_#{user_id()} - Restart playout chain")
 log("INFO:   - GET /shutdown_#{user_id()} - Shutdown script")
 log("INFO:   - GET /health_#{user_id()} - Health check")
+log("INFO:   - GET /eq_preset_#{user_id()} - Get current EQ preset")
+log("INFO:   - POST /eq_preset_#{user_id()}?preset=<name> - Change EQ preset")
+log("INFO: Available EQ presets: flat, vocal_boost, bass_heavy, bright, warm, radio_classic, pop, rock, classical")
 
 
 
