@@ -482,64 +482,85 @@ def req_shutdown(_, res)
   res.status_message("SUCCESS: Shutdown initiated for user: #{user_id()}")
 end
 
-# EQ preset control endpoint
-def req_eq_preset(req, res)
-  method = req.method()
+# EQ preset GET endpoint
+def req_eq_preset_get(_, res)
+  # Return current preset and available presets
+  eq_json = "{" ^
+    "\"current_preset\":\"#{eq_preset()}\"," ^
+    "\"available_presets\":[\"flat\",\"vocal_boost\",\"bass_heavy\",\"bright\",\"warm\",\"radio_classic\",\"pop\",\"rock\",\"classical\"]," ^
+    "\"eq_available\":#{string_of(eq_available())}" ^
+    "}"
   
-  if method == "GET" then
-    # Return current preset and available presets
-    eq_json = "{" ^
-      "\"current_preset\":\"#{eq_preset()}\"," ^
-      "\"available_presets\":[\"flat\",\"vocal_boost\",\"bass_heavy\",\"bright\",\"warm\",\"radio_classic\",\"pop\",\"rock\",\"classical\"]," ^
-      "\"eq_available\":#{string_of(eq_available())}" ^
-      "}"
+  res.status_code(200)
+  res.content_type("application/json")
+  res.status_message(eq_json)
+end
+
+# EQ preset POST endpoint
+def req_eq_preset_post(req, res)
+  # Change EQ preset
+  try
+    # Extract preset from query list
+    query_params = req.query
+    preset_param = ""
     
-    res.status_code(200)
-    res.content_type("application/json")
-    res.status_message(eq_json)
-  elsif method == "POST" then
-    # Change EQ preset
-    try
-      preset_param = url.split_args(req.query())["preset"]
-      valid_presets = ["flat", "vocal_boost", "bass_heavy", "bright", "warm", "radio_classic", "pop", "rock", "classical"]
+    # Find preset parameter in query list
+    def find_preset(params)
+      list.fold(
+        fun(acc, param) ->
+          if string.contains(substring="preset=", param) then
+            # Extract value after "preset="
+            parts = string.split(separator="=", param)
+            if list.length(parts) > 1 then
+              list.nth(parts, 1)
+            else
+              acc
+            end
+          else
+            acc
+          end,
+        "",
+        params
+      )
+    end
+    
+    preset_param = find_preset(query_params)
+    
+    if preset_param == "flat" or preset_param == "vocal_boost" or preset_param == "bass_heavy" or 
+       preset_param == "bright" or preset_param == "warm" or preset_param == "radio_classic" or
+       preset_param == "pop" or preset_param == "rock" or preset_param == "classical" then
+      eq_preset := preset_param
+      save_eq_preset()
+      log("INFO: EQ preset changed to: #{preset_param}")
       
-      if list.mem(preset_param, valid_presets) then
-        eq_preset := preset_param
-        save_eq_preset()
-        log("INFO: EQ preset changed to: #{preset_param}")
-        
-        response_json = "{" ^
-          "\"status\":\"success\"," ^
-          "\"message\":\"EQ preset changed to #{preset_param}\"," ^
-          "\"current_preset\":\"#{eq_preset()}\"" ^
-          "}"
-        
-        res.status_code(200)
-        res.content_type("application/json")
-        res.status_message(response_json)
-      else
-        error_json = "{" ^
-          "\"status\":\"error\"," ^
-          "\"message\":\"Invalid preset. Available: flat, vocal_boost, bass_heavy, bright, warm, radio_classic, pop, rock, classical\"" ^
-          "}"
-        
-        res.status_code(400)
-        res.content_type("application/json")
-        res.status_message(error_json)
-      end
-    catch err do
-      error_json = "{" ^
-        "\"status\":\"error\"," ^
-        "\"message\":\"Failed to change EQ preset: #{err}\"" ^
+      response_json = "{" ^
+        "\"status\":\"success\"," ^
+        "\"message\":\"EQ preset changed to #{preset_param}\"," ^
+        "\"current_preset\":\"#{eq_preset()}\"" ^
         "}"
       
-      res.status_code(500)
+      res.status_code(200)
+      res.content_type("application/json")
+      res.status_message(response_json)
+    else
+      error_json = "{" ^
+        "\"status\":\"error\"," ^
+        "\"message\":\"Invalid preset '#{preset_param}'. Available: flat, vocal_boost, bass_heavy, bright, warm, radio_classic, pop, rock, classical\"" ^
+        "}"
+      
+      res.status_code(400)
       res.content_type("application/json")
       res.status_message(error_json)
     end
-  else
-    res.status_code(405)
-    res.status_message("Method not allowed")
+  catch err do
+    error_json = "{" ^
+      "\"status\":\"error\"," ^
+      "\"message\":\"Failed to change EQ preset: #{err}\"" ^
+      "}"
+    
+    res.status_code(500)
+    res.content_type("application/json")
+    res.status_message(error_json)
   end
 end
 
@@ -569,8 +590,8 @@ end
 harbor.http.register(port=7000, method="GET", "/restart_#{user_id()}", req_restart)
 harbor.http.register(port=7000, method="GET", "/shutdown_#{user_id()}", req_shutdown)
 harbor.http.register(port=7000, method="GET", "/health_#{user_id()}", req_health)
-harbor.http.register(port=7000, method="GET", "/eq_preset_#{user_id()}", req_eq_preset)
-harbor.http.register(port=7000, method="POST", "/eq_preset_#{user_id()}", req_eq_preset)
+harbor.http.register(port=7000, method="GET", "/eq_preset_#{user_id()}", req_eq_preset_get)
+harbor.http.register(port=7000, method="POST", "/eq_preset_#{user_id()}", req_eq_preset_post)
 
 log("INFO: HTTP endpoints registered on port 7000")
 log("INFO: Available endpoints:")
