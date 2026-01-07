@@ -118,22 +118,20 @@ def apply_eq_to_stream(source)
       
       # Apply 10-band EQ using TAP Equalizer plugin
       # TAP Equalizer/BW has 10 bands at standard frequencies
-      eq_source = ladspa(
-        plugin="tap_equalizer_bw",
+      eq_source = ladspa(plugin="tap_equalizer_bw", 
         [
-          ("band_1_gain", list.nth(preset_params, 0)),   # 31 Hz
-          ("band_2_gain", list.nth(preset_params, 1)),   # 62 Hz  
-          ("band_3_gain", list.nth(preset_params, 2)),   # 125 Hz
-          ("band_4_gain", list.nth(preset_params, 3)),   # 250 Hz
-          ("band_5_gain", list.nth(preset_params, 4)),   # 500 Hz
-          ("band_6_gain", list.nth(preset_params, 5)),   # 1 kHz
-          ("band_7_gain", list.nth(preset_params, 6)),   # 2 kHz
-          ("band_8_gain", list.nth(preset_params, 7)),   # 4 kHz
-          ("band_9_gain", list.nth(preset_params, 8)),   # 8 kHz
-          ("band_10_gain", list.nth(preset_params, 9))   # 16 kHz
-        ],
-        source
-      )
+          list.nth(preset_params, 0),   # 31 Hz
+          list.nth(preset_params, 1),   # 62 Hz  
+          list.nth(preset_params, 2),   # 125 Hz
+          list.nth(preset_params, 3),   # 250 Hz
+          list.nth(preset_params, 4),   # 500 Hz
+          list.nth(preset_params, 5),   # 1 kHz
+          list.nth(preset_params, 6),   # 2 kHz
+          list.nth(preset_params, 7),   # 4 kHz
+          list.nth(preset_params, 8),   # 8 kHz
+          list.nth(preset_params, 9)    # 16 kHz
+        ], 
+        source)
       
       log("INFO: EQ applied with preset: #{eq_preset()}")
       eq_source
