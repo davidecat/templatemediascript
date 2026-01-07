@@ -83,15 +83,15 @@ def load_eq_preset()
         log("INFO: EQ preset loaded: #{preset}")
       else
         log("WARNING: Invalid EQ preset in config file, using flat")
-        eq_preset := "flat"
+        eq_preset := "pop"
       end
     else
       log("INFO: No EQ config file found, using default preset: flat")
-      eq_preset := "flat"
+      eq_preset := "pop"
     end
   catch err do
     log("ERROR: Failed to load EQ preset: #{err}, using flat")
-    eq_preset := "flat"
+    eq_preset := "pop"
   end
 end
 
