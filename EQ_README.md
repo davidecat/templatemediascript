@@ -5,24 +5,21 @@ This implementation adds a professional 10-band graphic equalizer with presets t
 
 ## Installation
 
-### 1. Install LADSPA Plugins (Ubuntu 22.04.5 LTS)
+### 1. No External Dependencies Required
+The EQ system uses Liquidsoap's built-in IIR filter functions, so no external plugins need to be installed. Only the config directory is required:
+
 ```bash
-sudo apt-get update && sudo apt-get install -y ladspa-sdk tap-plugins calf-plugins swh-plugins
-
-# Verify installation
-find /usr/lib -name '*.so' | grep -E '(tap|calf|swh)' | head -5
-
-# Create config directory
+# Create config directory for persistent settings
 sudo mkdir -p /home/oooomedia/liq_scripts/configs
 sudo chown -R oooomedia:oooomedia /home/oooomedia/liq_scripts/configs
 ```
 
 ### 2. Script Integration
 The EQ system has been integrated into your existing script with:
-- **Automatic plugin detection** on startup
+- **Built-in IIR filters** - no external dependencies
 - **Persistent preset storage** across restarts
 - **HTTP API** for remote control
-- **Graceful fallback** if plugins unavailable
+- **Universal compatibility** with all Liquidsoap versions
 
 ## EQ Presets
 
@@ -120,38 +117,31 @@ curl "http://localhost:7000/eq_preset_123"
 ## Logging
 
 ### EQ-Related Log Messages
-- `INFO: EQ plugin (TAP Equalizer) available and working`
+- `INFO: Built-in EQ filters available and working`
 - `INFO: EQ preset loaded: <preset_name>`
 - `INFO: EQ preset saved: <preset_name>`
-- `INFO: EQ applied with preset: <preset_name>`
-- `WARNING: EQ plugin not available: <error>`
-- `ERROR: EQ plugin failed: <error>, bypassing EQ`
+- `INFO: Built-in EQ applied with preset: <preset_name>`
+- `WARNING: Built-in EQ filters not available: <error>`
+- `ERROR: EQ processing failed: <error>, bypassing EQ`
 
 ## Troubleshooting
 
 ### EQ Not Working
-1. **Check plugin installation:**
-   ```bash
-   find /usr/lib -name '*tap*' | grep equalizer
-   ```
-
-2. **Check logs:**
+1. **Check logs:**
    ```bash
    tail -f /home/oooomedia/liq_scripts/logs/<user_id>.log | grep EQ
    ```
 
-3. **Test plugin manually:**
-   ```bash
-   listplugins | grep -i equalizer
-   ```
+2. **Test filter availability:**
+   The built-in filters should always be available in Liquidsoap. If they're not working, check your Liquidsoap version.
 
 ### Common Issues
 
-#### Plugin Not Found
+#### Filters Not Available
 ```
-WARNING: EQ plugin not available: Plugin not found
+WARNING: Built-in EQ filters not available: <error>
 ```
-**Solution:** Install TAP plugins: `sudo apt-get install tap-plugins`
+**Solution:** This is rare - check your Liquidsoap installation and version
 
 #### Permission Issues
 ```
