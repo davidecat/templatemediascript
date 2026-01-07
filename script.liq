@@ -118,7 +118,7 @@ def apply_eq_to_stream(source)
       
       # Apply 10-band EQ using TAP Equalizer plugin
       # TAP Equalizer/BW has 10 bands at standard frequencies
-      eq_source = ladspa(plugin="tap_equalizer_bw", 
+      eq_source = ladspa("tap_equalizer_bw", 
         [
           list.nth(preset_params, 0),   # 31 Hz
           list.nth(preset_params, 1),   # 62 Hz  
@@ -147,7 +147,7 @@ end
 def test_eq_availability()
   try
     test_source = sine(440.0, duration=0.1)
-    ignore(ladspa(plugin="tap_equalizer_bw", [], test_source))
+    ignore(ladspa("tap_equalizer_bw", [], test_source))
     eq_available := true
     log("INFO: EQ plugin (TAP Equalizer) available and working")
   catch err do
