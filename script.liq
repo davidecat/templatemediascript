@@ -138,7 +138,7 @@ def init_playout_chain()
 
   # Determine current music source based on loop type [cite: 146]
   current_music_source = switch(track_sensitive=false, [
-    ({current_loop() == "J" or current_loop() == "K" current_loop() == "H" current_loop() == "I"}, music_4m),
+    ({current_loop() == "J" or current_loop() == "K" or current_loop() == "H" or current_loop() == "I"}, music_4m),
     ({true}, music)
   ])
 
