@@ -591,7 +591,7 @@ harbor.http.register(port=7000, method="GET", "/restart_#{user_id()}", req_resta
 harbor.http.register(port=7000, method="GET", "/shutdown_#{user_id()}", req_shutdown)
 harbor.http.register(port=7000, method="GET", "/health_#{user_id()}", req_health)
 harbor.http.register(port=7000, method="GET", "/eq_preset_#{user_id()}", req_eq_preset_get)
-harbor.http.register(port=7000, method="POST", "/eq_preset_#{user_id()}", req_eq_preset_post)
+#harbor.http.register(port=7000, method="POST", "/eq_preset_#{user_id()}", req_eq_preset_post)
 
 log("INFO: HTTP endpoints registered on port 7000")
 log("INFO: Available endpoints:")
