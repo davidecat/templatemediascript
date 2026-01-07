@@ -107,7 +107,7 @@ def save_eq_preset()
   end
 end
 
-# Apply EQ to audio stream using built-in filters
+# Apply EQ to audio stream using basic amplification
 def apply_eq_to_stream(source)
   if not eq_available() then
     log("WARNING: EQ not available, bypassing")
@@ -116,54 +116,28 @@ def apply_eq_to_stream(source)
     try
       preset_params = get_eq_preset_params(eq_preset())
       
-      # Apply multi-band EQ using basic filter functions
-      # Chain multiple filters for different frequency bands
+      # Apply EQ using basic amplification based on preset
+      # This is a simplified approach using only amplify function
       eq_source = source
       
-      # 31 Hz - Low pass filter for sub-bass control
-      if list.nth(preset_params, 0) != 0.0 then
-        if list.nth(preset_params, 0) > 0.0 then
-          eq_source = filter.iir.resonator.allpass(frequency=31.0, bandwidth=10.0, eq_source)
-        else
-          eq_source = filter.iir.eq.high_pass(frequency=40.0, eq_source)
-        end
-      end
+      # Calculate overall gain adjustment based on preset
+      # Focus on the most important frequency ranges for radio
+      bass_gain = (list.nth(preset_params, 0) + list.nth(preset_params, 1) + list.nth(preset_params, 2)) / 3.0
+      mid_gain = (list.nth(preset_params, 3) + list.nth(preset_params, 4) + list.nth(preset_params, 5) + list.nth(preset_params, 6)) / 4.0
+      high_gain = (list.nth(preset_params, 7) + list.nth(preset_params, 8) + list.nth(preset_params, 9)) / 3.0
       
-      # 62 Hz - Bass control using high/low pass combination
-      if list.nth(preset_params, 1) != 0.0 then
-        if list.nth(preset_params, 1) > 0.0 then
-          eq_source = amplify(1.0 + (list.nth(preset_params, 1) * 0.1), eq_source)
-        else
-          eq_source = filter.iir.eq.high_pass(frequency=80.0, eq_source)
-        end
-      end
-      
-      # For mid and high frequencies, use basic amplification with filtering
-      # This is a simplified approach that works with basic Liquidsoap installations
-      
-      # Apply overall gain adjustment based on preset
-      total_gain = (list.nth(preset_params, 0) + list.nth(preset_params, 1) + 
-                   list.nth(preset_params, 2) + list.nth(preset_params, 3) + 
-                   list.nth(preset_params, 4) + list.nth(preset_params, 5) + 
-                   list.nth(preset_params, 6) + list.nth(preset_params, 7) + 
-                   list.nth(preset_params, 8) + list.nth(preset_params, 9)) / 10.0
+      # Apply overall tonal adjustment
+      total_gain = (bass_gain * 0.3) + (mid_gain * 0.4) + (high_gain * 0.3)
       
       if total_gain != 0.0 then
-        eq_source = amplify(1.0 + (total_gain * 0.05), eq_source)
-      end
-      
-      # High frequency control using low pass filter
-      if list.nth(preset_params, 9) != 0.0 then
-        if list.nth(preset_params, 9) > 0.0 then
-          # Boost highs by reducing low pass filtering
-          eq_source = amplify(1.0 + (list.nth(preset_params, 9) * 0.02), eq_source)
-        else
-          # Cut highs with low pass filter
-          eq_source = filter.iir.eq.low_pass(frequency=12000.0, eq_source)
+        # Apply gentle gain adjustment (max ±3dB)
+        gain_factor = 1.0 + (total_gain * 0.03)
+        if gain_factor > 0.1 and gain_factor < 3.0 then
+          eq_source = amplify(gain_factor, eq_source)
         end
       end
       
-      log("INFO: Basic EQ applied with preset: #{eq_preset()}")
+      log("INFO: Basic EQ applied with preset: #{eq_preset()} (gain: #{total_gain}dB)")
       eq_source
     catch err do
       log("ERROR: EQ processing failed: #{err}, bypassing EQ")
@@ -173,17 +147,17 @@ def apply_eq_to_stream(source)
   end
 end
 
-# Test EQ availability (basic filters should be available)
+# Test EQ availability (amplify should always be available)
 def test_eq_availability()
   try
-    # Test basic filter functionality
+    # Test basic amplify functionality
     test_source = sine(440.0, duration=0.1)
     ignore(amplify(1.0, test_source))
     eq_available := true
-    log("INFO: Basic EQ filters available and working")
+    log("INFO: Basic EQ (amplify) available and working")
   catch err do
     eq_available := false
-    log("WARNING: Basic EQ filters not available: #{err}")
+    log("WARNING: Basic EQ not available: #{err}")
   end
 end
 
