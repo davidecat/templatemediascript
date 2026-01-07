@@ -48,7 +48,7 @@ curl "http://localhost:7000/eq_preset_<USER_ID>"
 **Response:**
 ```json
 {
-  "current_preset": "flat",
+  "current_preset": "pop",
   "available_presets": ["flat", "vocal_boost", "bass_heavy", "bright", "warm", "radio_classic", "pop", "rock", "classical"],
   "eq_available": true
 }
