@@ -107,7 +107,7 @@ def save_eq_preset()
   end
 end
 
-# Apply EQ to audio stream using LADSPA plugin
+# Apply EQ to audio stream using built-in filters
 def apply_eq_to_stream(source)
   if not eq_available() then
     log("WARNING: EQ not available, bypassing")
@@ -116,44 +116,81 @@ def apply_eq_to_stream(source)
     try
       preset_params = get_eq_preset_params(eq_preset())
       
-      # Apply 10-band EQ using TAP Equalizer plugin
-      # TAP Equalizer/BW has 10 bands at standard frequencies
-      eq_source = ladspa("tap_equalizer_bw", 
-        [
-          list.nth(preset_params, 0),   # 31 Hz
-          list.nth(preset_params, 1),   # 62 Hz  
-          list.nth(preset_params, 2),   # 125 Hz
-          list.nth(preset_params, 3),   # 250 Hz
-          list.nth(preset_params, 4),   # 500 Hz
-          list.nth(preset_params, 5),   # 1 kHz
-          list.nth(preset_params, 6),   # 2 kHz
-          list.nth(preset_params, 7),   # 4 kHz
-          list.nth(preset_params, 8),   # 8 kHz
-          list.nth(preset_params, 9)    # 16 kHz
-        ], 
-        source)
+      # Apply multi-band EQ using built-in filters
+      # Chain multiple parametric filters for different frequency bands
+      eq_source = source
+      
+      # 31 Hz - Low shelf filter
+      if list.nth(preset_params, 0) != 0.0 then
+        eq_source = filter.iir.eq.low_shelf(frequency=31.0, gain=list.nth(preset_params, 0), eq_source)
+      end
+      
+      # 62 Hz - Parametric filter
+      if list.nth(preset_params, 1) != 0.0 then
+        eq_source = filter.iir.eq.peak(frequency=62.0, gain=list.nth(preset_params, 1), q=1.0, eq_source)
+      end
+      
+      # 125 Hz - Parametric filter
+      if list.nth(preset_params, 2) != 0.0 then
+        eq_source = filter.iir.eq.peak(frequency=125.0, gain=list.nth(preset_params, 2), q=1.0, eq_source)
+      end
+      
+      # 250 Hz - Parametric filter
+      if list.nth(preset_params, 3) != 0.0 then
+        eq_source = filter.iir.eq.peak(frequency=250.0, gain=list.nth(preset_params, 3), q=1.0, eq_source)
+      end
+      
+      # 500 Hz - Parametric filter
+      if list.nth(preset_params, 4) != 0.0 then
+        eq_source = filter.iir.eq.peak(frequency=500.0, gain=list.nth(preset_params, 4), q=1.0, eq_source)
+      end
+      
+      # 1 kHz - Parametric filter
+      if list.nth(preset_params, 5) != 0.0 then
+        eq_source = filter.iir.eq.peak(frequency=1000.0, gain=list.nth(preset_params, 5), q=1.0, eq_source)
+      end
+      
+      # 2 kHz - Parametric filter
+      if list.nth(preset_params, 6) != 0.0 then
+        eq_source = filter.iir.eq.peak(frequency=2000.0, gain=list.nth(preset_params, 6), q=1.0, eq_source)
+      end
+      
+      # 4 kHz - Parametric filter
+      if list.nth(preset_params, 7) != 0.0 then
+        eq_source = filter.iir.eq.peak(frequency=4000.0, gain=list.nth(preset_params, 7), q=1.0, eq_source)
+      end
+      
+      # 8 kHz - Parametric filter
+      if list.nth(preset_params, 8) != 0.0 then
+        eq_source = filter.iir.eq.peak(frequency=8000.0, gain=list.nth(preset_params, 8), q=1.0, eq_source)
+      end
+      
+      # 16 kHz - High shelf filter
+      if list.nth(preset_params, 9) != 0.0 then
+        eq_source = filter.iir.eq.high_shelf(frequency=16000.0, gain=list.nth(preset_params, 9), eq_source)
+      end
       
       log("INFO: EQ applied with preset: #{eq_preset()}")
       eq_source
     catch err do
-      log("ERROR: EQ plugin failed: #{err}, bypassing EQ")
+      log("ERROR: EQ processing failed: #{err}, bypassing EQ")
       eq_available := false
       source
     end
   end
 end
 
-# Test EQ plugin availability
+# Test EQ availability (built-in filters are always available)
 def test_eq_availability()
   try
+    # Test basic filter functionality
     test_source = sine(440.0, duration=0.1)
-    ignore(ladspa("tap_equalizer_bw", [], test_source))
+    ignore(filter.iir.eq.peak(frequency=1000.0, gain=0.0, q=1.0, test_source))
     eq_available := true
-    log("INFO: EQ plugin (TAP Equalizer) available and working")
+    log("INFO: Built-in EQ filters available and working")
   catch err do
     eq_available := false
-    log("WARNING: EQ plugin not available: #{err}")
-    log("WARNING: Install with: sudo apt-get install tap-plugins")
+    log("WARNING: EQ filters not available: #{err}")
   end
 end
 
