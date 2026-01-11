@@ -116,10 +116,6 @@ def apply_eq_to_stream(source)
     try
       preset_params = get_eq_preset_params(eq_preset())
       
-      # Apply EQ using basic amplification based on preset
-      # This is a simplified approach using only amplify function
-      eq_source = source
-      
       # Calculate overall gain adjustment based on preset
       # Focus on the most important frequency ranges for radio
       bass_gain = (list.nth(preset_params, 0) + list.nth(preset_params, 1) + list.nth(preset_params, 2)) / 3.0
@@ -129,16 +125,21 @@ def apply_eq_to_stream(source)
       # Apply overall tonal adjustment
       total_gain = (bass_gain * 0.3) + (mid_gain * 0.4) + (high_gain * 0.3)
       
+      # Apply EQ using basic amplification based on preset
       if total_gain != 0.0 then
         # Apply gentle gain adjustment (max ±3dB)
         gain_factor = 1.0 + (total_gain * 0.03)
         if gain_factor > 0.1 and gain_factor < 3.0 then
-          eq_source = amplify(gain_factor, eq_source)
+          log("INFO: Basic EQ applied with preset: #{eq_preset()} (gain: #{total_gain}dB)")
+          amplify(gain_factor, source)
+        else
+          log("INFO: EQ gain factor out of bounds, bypassing")
+          source
         end
+      else
+        log("INFO: EQ preset has no gain adjustment: #{eq_preset()}")
+        source
       end
-      
-      log("INFO: Basic EQ applied with preset: #{eq_preset()} (gain: #{total_gain}dB)")
-      eq_source
     catch err do
       log("ERROR: EQ processing failed: #{err}, bypassing EQ")
       eq_available := false
@@ -251,7 +252,7 @@ def init_playout_chain()
     # We wait 2 seconds for the transition to finish before skipping [cite: 142]
     thread.run(delay=2.0, fun() -> begin
       log("INFO: Flushing music background for fresh restart")
-      if current_loop() == "J" or current_loop() == "K" then
+      if current_loop() == "J" or current_loop() == "K" or current_loop() == "H" or current_loop() == "I" then
         music_4m.skip()
       else
         music.skip()
