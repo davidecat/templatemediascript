@@ -405,7 +405,7 @@ def init_playout_chain()
     if is_transitioning_to_ads then
       # Music to Ads: shorter fade for punchier ad entry
       log("INFO: Transitioning from music to ads")
-      add([fade.out(duration=0.5, old), fade.in(duration=0.2, new)])
+      add([fade.out(duration=2.0, old), fade.in(duration=0.2, new)])
     elsif is_transitioning_from_ads then
       # Ads to Music: longer fade for smoother return to music
       log("INFO: Transitioning from ads to music")
