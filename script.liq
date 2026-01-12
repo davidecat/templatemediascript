@@ -395,9 +395,31 @@ def init_playout_chain()
       (predicate.at_most(3, {59m40s and current_loop() == "E"}), ads)
   ])
 
-  # Final Sequential Stream with Fade Transition
+  # Custom transition function with different fades for music and ads
+  def custom_transition(old, new)
+    # Check if we're transitioning to ads (new source is ads)
+    # or from ads (old source is ads) by checking source readiness
+    is_transitioning_to_ads = source.is_ready(ad_selector) and source.id(new) == source.id(ad_selector)
+    is_transitioning_from_ads = source.is_ready(ad_selector) and source.id(old) == source.id(ad_selector)
+    
+    if is_transitioning_to_ads then
+      # Music to Ads: shorter fade for punchier ad entry
+      log("INFO: Transitioning from music to ads")
+      add([fade.out(duration=0.5, old), fade.in(duration=0.2, new)])
+    elsif is_transitioning_from_ads then
+      # Ads to Music: longer fade for smoother return to music
+      log("INFO: Transitioning from ads to music")
+      add([fade.out(duration=2.0, old), fade.in(duration=2.0, new)])
+    else
+      # Music to Music: standard fade
+      log("INFO: Transitioning between music tracks")
+      add([fade.out(duration=2, old), fade.in(duration=0.1, new)])
+    end
+  end
+  
+  # Final Sequential Stream with Custom Fade Transition
   radio_stream = switch(track_sensitive=false,
-    transitions=[fun(old, new) -> add([fade.out(duration=2.0, old), fade.in(duration=0.1, new)])],
+    transitions=[custom_transition],
     [
       ({source.is_ready(ad_selector)}, ad_selector),
       ({true}, current_music_source)
@@ -408,14 +430,11 @@ def init_playout_chain()
   # AUDIO ENHANCEMENT
   # ============================================================================
   
-  # Normalize audio levels
-    radio_stream = normalize(target=0., window=0.03, gain_min=-12., gain_max=0., radio_stream)
-    # more aggressive
-    #radio_stream = normalize(target=-6., window=1.0, gain_min=-6., gain_max=0., radio_stream)
-
-  # Apply dynamic range compression
-  #radio_stream = compress.exponential(mu=1.0, radio_stream)
-    radio_stream = compress.exponential(mu=3.0, radio_stream)
+  # Normalize audio levels to ensure consistent volume across all content
+  radio_stream = normalize(target=-3., window=0.5, gain_min=-15., gain_max=6., radio_stream)
+  
+  # Apply dynamic range compression for more consistent loudness
+  radio_stream = compress.exponential(mu=1.0, radio_stream)
   log("INFO: Audio normalization and compression applied")
 
 
