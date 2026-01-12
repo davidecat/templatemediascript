@@ -409,13 +409,13 @@ def init_playout_chain()
   # ============================================================================
   
   # Normalize audio levels
-    radio_stream = normalize(target=0., window=0.03, gain_min=-12., gain_max=0., radio_stream)
+    #radio_stream = normalize(target=0., window=0.03, gain_min=-12., gain_max=0., radio_stream)
     # more aggressive
     #radio_stream = normalize(target=-6., window=1.0, gain_min=-6., gain_max=0., radio_stream)
 
   # Apply dynamic range compression
   #radio_stream = compress.exponential(mu=1.0, radio_stream)
-    radio_stream = compress.exponential(mu=1.0, radio_stream)
+   # radio_stream = compress.exponential(mu=1.0, radio_stream)
   log("INFO: Audio normalization and compression applied")
 
 
