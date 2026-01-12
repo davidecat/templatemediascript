@@ -397,7 +397,7 @@ def init_playout_chain()
 
   # Final Sequential Stream with Fade Transition
   radio_stream = switch(track_sensitive=false,
-    transitions=[fun(old, new) -> add([fade.out(duration=2.0, old), fade.in(duration=0.5, new)])],
+    transitions=[fun(old, new) -> add([fade.out(duration=2.0, old), fade.in(duration=0.1, new)])],
     [
       ({source.is_ready(ad_selector)}, ad_selector),
       ({true}, current_music_source)
@@ -409,10 +409,13 @@ def init_playout_chain()
   # ============================================================================
   
   # Normalize audio levels
-    radio_stream = normalize(target=0., window=0.03, gain_min=-12., gain_max=0., radio_stream)
-  
+    #radio_stream = normalize(target=0., window=0.03, gain_min=-12., gain_max=0., radio_stream)
+    # more aggressive
+    radio_stream = normalize(target=-1., window=0.01, gain_min=-15., gain_max=6., radio_stream)
+
   # Apply dynamic range compression
-    radio_stream = compress.exponential(mu=1.0, radio_stream)
+  #radio_stream = compress.exponential(mu=1.0, radio_stream)
+    radio_stream = compress.exponential(mu=50.0, radio_stream)
   log("INFO: Audio normalization and compression applied")
 
 
