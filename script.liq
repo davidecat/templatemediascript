@@ -218,7 +218,7 @@ def add_track(stream)
   track_uri = if stream == "music" or stream == "4minutesmusic" then
     'autocue:annotate:liq_cue_in=0.0,liq_blankskip=0.0,liq_cue_file=false:'^j.data.asset_path
   else
-    'autocue:annotate:liq_cue_file=false,liq_blankskip=0.0:'^j.data.asset_path
+    'autocue:annotate:liq_cue_in=0.0,liq_blankskip=0.0,liq_cue_file=false:'^j.data.asset_path
   end
   request.create(track_uri)
 end
@@ -249,8 +249,8 @@ def init_playout_chain()
 
   # Skip Logic: Clears the background music while ads are playing
   def skip_music_on_ad_or_ad(_)
-    # We wait 2 seconds for the transition to finish before skipping [cite: 142]
-    thread.run(delay=0.1, fun() -> begin
+    # We wait for the transition to finish before skipping
+    thread.run(delay=2.5, fun() -> begin
       log("INFO: Flushing music background for fresh restart")
       if current_loop() == "J" or current_loop() == "K" or current_loop() == "H" or current_loop() == "I" then
         music_4m.skip()
@@ -402,10 +402,14 @@ def init_playout_chain()
     is_transitioning_to_ads = source.is_ready(ad_selector) and source.id(new) == source.id(ad_selector)
     is_transitioning_from_ads = source.is_ready(ad_selector) and source.id(old) == source.id(ad_selector)
     
+    # Add diagnostic logging
+    log("DEBUG: Transition - Old source ID: #{source.id(old)}, New source ID: #{source.id(new)}")
+    log("DEBUG: Ad selector ready: #{source.is_ready(ad_selector)}, Ad selector ID: #{source.id(ad_selector)}")
+    
     if is_transitioning_to_ads then
-      # Music to Ads: shorter fade for punchier ad entry
-      log("INFO: Transitioning from music to ads")
-      add([fade.out(duration=2.0, old), fade.in(duration=0.2, new)])
+      # Music to Ads: increase fade-in to reduce volume shock
+      log("INFO: Transitioning from music to ads - applying longer fade-in")
+      add([fade.out(duration=2.0, old), fade.in(duration=1.0, new)])
     elsif is_transitioning_from_ads then
       # Ads to Music: longer fade for smoother return to music
       log("INFO: Transitioning from ads to music")
