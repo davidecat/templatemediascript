@@ -413,7 +413,7 @@ def init_playout_chain()
     else
       # Music to Music: standard fade
       log("INFO: Transitioning between music tracks")
-      add([fade.out(duration=2, old), fade.in(duration=0.1, new)])
+      add([fade.out(duration=2.0, old), fade.in(duration=0.1, new)])
     end
   end
   
