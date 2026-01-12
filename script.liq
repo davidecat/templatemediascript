@@ -415,7 +415,7 @@ def init_playout_chain()
 
   # Apply dynamic range compression
   #radio_stream = compress.exponential(mu=1.0, radio_stream)
-   # radio_stream = compress.exponential(mu=1.0, radio_stream)
+  radio_stream = compress.exponential(mu=1.0, radio_stream)
   log("INFO: Audio normalization and compression applied")
 
 
