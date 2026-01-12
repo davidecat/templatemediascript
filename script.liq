@@ -250,7 +250,7 @@ def init_playout_chain()
   # Skip Logic: Clears the background music while ads are playing
   def skip_music_on_ad_or_ad(_)
     # We wait 2 seconds for the transition to finish before skipping [cite: 142]
-    thread.run(delay=2.0, fun() -> begin
+    thread.run(delay=0.1, fun() -> begin
       log("INFO: Flushing music background for fresh restart")
       if current_loop() == "J" or current_loop() == "K" or current_loop() == "H" or current_loop() == "I" then
         music_4m.skip()
