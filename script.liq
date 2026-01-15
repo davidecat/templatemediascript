@@ -541,6 +541,8 @@ def req_health(_, res)
     "\"current_loop\":\"#{current_loop()}\"," ^
     "\"played_ad_count\":#{played_ad_count()}," ^
     "\"icecast_host\":\"#{icecast_host()}\"," ^
+    "\"played_ad_count\":#{played_ad_count()}," ^
+    "\"icecast_host\":\"#{icecast_host()}\"," ^
     "\"icecast_port\":#{icecast_port()}," ^
     "\"icecast_mount\":\"#{icecast_mount()}\"," ^
     "\"prayer_times_count\":#{list.length(prayer_times())}," ^
@@ -550,8 +552,6 @@ def req_health(_, res)
     "\"eq_available\":#{string_of(eq_available())}" ^
     "}"
 
-  # Try returning the response directly
-  "HTTP/1.0 200 OK\r\nContent-Type: application/json\r\n\r\n#{status_json}"
   res.status_code(200)
   res.content_type("application/json")
   res.data(status_json)
