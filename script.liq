@@ -456,8 +456,8 @@ def init_playout_chain()
   # ============================================================================
   
   # Apply EQ to final output (after all processing, before Icecast)
-  #final_radio_eq = apply_eq_to_stream(final_radio)
-  final_radio_eq = final_radio
+  final_radio_eq = apply_eq_to_stream(final_radio)
+  #final_radio_eq = final_radio
   log("INFO: EQ processing applied to final output")
 
   # Output to Icecast
