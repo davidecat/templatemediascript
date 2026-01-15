@@ -82,16 +82,16 @@ def load_eq_preset()
         eq_preset := preset
         log("INFO: EQ preset loaded: #{preset}")
       else
-        log("WARNING: Invalid EQ preset in config file, using pop")
-        eq_preset := "pop"
+        log("WARNING: Invalid EQ preset in config file, using radio_classic")
+        eq_preset := "radio_classic"
       end
     else
-      log("INFO: No EQ config file found, using default preset: pop")
-      eq_preset := "pop"
+      log("INFO: No EQ config file found, using default preset: radio_classic")
+      eq_preset := "radio_classic"
     end
   catch err do
-    log("ERROR: Failed to load EQ preset: #{err}, using pop")
-    eq_preset := "pop"
+    log("ERROR: Failed to load EQ preset: #{err}, using radio_classic")
+    eq_preset := "radio_classic"
   end
 end
 
