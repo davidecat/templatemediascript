@@ -397,27 +397,31 @@ def init_playout_chain()
 
   # Custom transition function with different fades for music and ads
   def custom_transition(old, new)
-    # Check if we're transitioning to ads (new source is ads)
-    # or from ads (old source is ads) by checking source readiness
-    is_transitioning_to_ads = source.is_ready(ad_selector) and source.id(new) == source.id(ad_selector)
-    is_transitioning_from_ads = source.is_ready(ad_selector) and source.id(old) == source.id(ad_selector)
+    # Check source types
+    old_is_ads = source.is_ready(ad_selector) and source.id(old) == source.id(ad_selector)
+    new_is_ads = source.is_ready(ad_selector) and source.id(new) == source.id(ad_selector)
     
     # Add diagnostic logging
     log("DEBUG: Transition - Old source ID: #{source.id(old)}, New source ID: #{source.id(new)}")
     log("DEBUG: Ad selector ready: #{source.is_ready(ad_selector)}, Ad selector ID: #{source.id(ad_selector)}")
+    log("DEBUG: Old is ads: #{old_is_ads}, New is ads: #{new_is_ads}")
     
-    if is_transitioning_to_ads then
-      # Music to Ads: increase fade-in to reduce volume shock
-      log("INFO: Transitioning from music to ads - applying longer fade-in")
-      add([fade.out(duration=0.5, old), fade.in(duration=0.1, new)])
-    elsif is_transitioning_from_ads then
-      # Ads to Music: longer fade for smoother return to music
+    if old_is_ads and new_is_ads then
+      # Ad to Ad: very short transition between consecutive ads
+      log("INFO: Transitioning from ad to ad - minimal fade")
+      add([fade.out(duration=0.01, old), fade.in(duration=0.01, new)])
+    elsif not old_is_ads and new_is_ads then
+      # Music to Ads: slightly longer fade-in to reduce volume shock
+      log("INFO: Transitioning from music to ads")
+      add([fade.out(duration=1.0, old), fade.in(duration=0.01, new)])
+    elsif old_is_ads and not new_is_ads then
+      # Ads to Music: smooth return to music
       log("INFO: Transitioning from ads to music")
-      add([fade.out(duration=0.1, old), fade.in(duration=0.1, new)])
+      add([fade.out(duration=0.01, old), fade.in(duration=0.01, new)])
     else
-      # Music to Music: standard fade
+      # Music to Music: standard crossfade
       log("INFO: Transitioning between music tracks")
-      add([fade.out(duration=0.1, old), fade.in(duration=0.1, new)])
+      add([fade.out(duration=1.0, old), fade.in(duration=1.0, new)])
     end
   end
   
