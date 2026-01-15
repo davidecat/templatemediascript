@@ -498,13 +498,11 @@ def req_restart(_, res)
     log("INFO: Playout chain restart scheduled")
 
     res.status_code(200)
-    res.content_type("text/plain")
-    res.data("SUCCESS: Script restart initiated for user: #{user_id()}")
+    res.status_message("SUCCESS: Script restart initiated for user: #{user_id()}")
   catch err do
     log("ERROR: Failed to restart script: #{err}")
     res.status_code(500)
-    res.content_type("text/plain")
-    res.data("ERROR: Failed to restart script")
+    res.status_message("ERROR: Failed to restart script")
   end
 end
 
@@ -516,8 +514,7 @@ def req_shutdown(_, res)
   thread.run(delay=1.0, shutdown)
 
   res.status_code(200)
-  res.content_type("text/plain")
-  res.data("SUCCESS: Shutdown initiated for user: #{user_id()}")
+  res.status_message("SUCCESS: Shutdown initiated for user: #{user_id()}")
 end
 
 # EQ preset GET endpoint - simplified to avoid type errors
@@ -529,8 +526,9 @@ def req_eq_preset_get(_, res)
     "\"eq_available\":#{string_of(eq_available())}" ^
     "}"
   
-  # Try returning the response directly
-  "HTTP/1.0 200 OK\r\nContent-Type: application/json\r\n\r\n#{eq_json}"
+  res.status_code(200)
+  res.content_type("application/json")
+  res.status_message(eq_json)
 end
 
 # Health check endpoint
@@ -539,8 +537,6 @@ def req_health(_, res)
   status_json = "{" ^
     "\"user_id\":\"#{user_id()}\"," ^
     "\"current_loop\":\"#{current_loop()}\"," ^
-    "\"played_ad_count\":#{played_ad_count()}," ^
-    "\"icecast_host\":\"#{icecast_host()}\"," ^
     "\"played_ad_count\":#{played_ad_count()}," ^
     "\"icecast_host\":\"#{icecast_host()}\"," ^
     "\"icecast_port\":#{icecast_port()}," ^
@@ -554,7 +550,7 @@ def req_health(_, res)
 
   res.status_code(200)
   res.content_type("application/json")
-  res.data(status_json)
+  res.status_message(status_json)
 end
 
 # Register HTTP endpoints
