@@ -407,9 +407,9 @@ def init_playout_chain()
     log("DEBUG: Old is ads: #{old_is_ads}, New is ads: #{new_is_ads}")
     
     if old_is_ads and new_is_ads then
-      # Ad to Ad: very short transition between consecutive ads
-      log("INFO: Transitioning from ad to ad - minimal fade")
-      add([fade.out(duration=0.01, old), fade.in(duration=0.01, new)])
+      # Ad to Ad: no transition between consecutive ads
+      log("INFO: Transitioning from ad to ad - no fade")
+      add([fade.out(duration=0.0, old), fade.in(duration=0.0, new)])
     elsif not old_is_ads and new_is_ads then
       # Music to Ads: slightly longer fade-in to reduce volume shock
       log("INFO: Transitioning from music to ads")
