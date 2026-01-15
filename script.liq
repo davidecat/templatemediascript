@@ -498,11 +498,13 @@ def req_restart(_, res)
     log("INFO: Playout chain restart scheduled")
 
     res.status_code(200)
-    res.status_message("SUCCESS: Script restart initiated for user: #{user_id()}")
+    res.content_type("text/plain")
+    res.data("SUCCESS: Script restart initiated for user: #{user_id()}")
   catch err do
     log("ERROR: Failed to restart script: #{err}")
     res.status_code(500)
-    res.status_message("ERROR: Failed to restart script")
+    res.content_type("text/plain")
+    res.data("ERROR: Failed to restart script")
   end
 end
 
@@ -514,7 +516,8 @@ def req_shutdown(_, res)
   thread.run(delay=1.0, shutdown)
 
   res.status_code(200)
-  res.status_message("SUCCESS: Shutdown initiated for user: #{user_id()}")
+  res.content_type("text/plain")
+  res.data("SUCCESS: Shutdown initiated for user: #{user_id()}")
 end
 
 # EQ preset GET endpoint - simplified to avoid type errors
@@ -526,9 +529,8 @@ def req_eq_preset_get(_, res)
     "\"eq_available\":#{string_of(eq_available())}" ^
     "}"
   
-  res.status_code(200)
-  res.content_type("application/json")
-  res.status_message(eq_json)
+  # Just return the JSON directly
+  eq_json
 end
 
 # Health check endpoint
@@ -548,9 +550,8 @@ def req_health(_, res)
     "\"eq_available\":#{string_of(eq_available())}" ^
     "}"
 
-  res.status_code(200)
-  res.content_type("application/json")
-  res.status_message(status_json)
+  # Just return the JSON directly
+  status_json
 end
 
 # Register HTTP endpoints
@@ -600,4 +601,5 @@ log("INFO: Prayer times refresh scheduled every hour")
 # Start the playout chain
   log("INFO: Starting main playout chain...")
   init_playout_chain()
+  log("INFO: Liquidsoap scheduler fully initialized and running with prayer time support")
   log("INFO: Liquidsoap scheduler fully initialized and running with prayer time support")
