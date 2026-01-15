@@ -529,8 +529,8 @@ def req_eq_preset_get(_, res)
     "\"eq_available\":#{string_of(eq_available())}" ^
     "}"
   
-  # Just return the JSON directly
-  eq_json
+  # Try returning the response directly
+  "HTTP/1.0 200 OK\r\nContent-Type: application/json\r\n\r\n#{eq_json}"
 end
 
 # Health check endpoint
@@ -550,8 +550,11 @@ def req_health(_, res)
     "\"eq_available\":#{string_of(eq_available())}" ^
     "}"
 
-  # Just return the JSON directly
-  status_json
+  # Try returning the response directly
+  "HTTP/1.0 200 OK\r\nContent-Type: application/json\r\n\r\n#{status_json}"
+  res.status_code(200)
+  res.content_type("application/json")
+  res.data(status_json)
 end
 
 # Register HTTP endpoints
@@ -601,5 +604,4 @@ log("INFO: Prayer times refresh scheduled every hour")
 # Start the playout chain
   log("INFO: Starting main playout chain...")
   init_playout_chain()
-  log("INFO: Liquidsoap scheduler fully initialized and running with prayer time support")
   log("INFO: Liquidsoap scheduler fully initialized and running with prayer time support")
