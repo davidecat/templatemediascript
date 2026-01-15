@@ -246,6 +246,10 @@ def init_playout_chain()
   music = request.dynamic(id="music", prefetch=1, {add_track("music")})
   music_4m = request.dynamic(id="4minutesmusic", prefetch=1, {add_track("4minutesmusic")})
   ads = request.dynamic(id="ads", prefetch=1, {add_track("ad")})
+  
+  # Apply separate normalization to ads to make them louder
+  ads = normalize(target=-1., window=0.05, gain_min=-10., gain_max=15., ads)
+  log("INFO: Aggressive normalization applied to ads source")
 
   # Skip Logic: Clears the background music while ads are playing
   def skip_music_on_ad_or_ad(_)
@@ -442,7 +446,7 @@ def init_playout_chain()
   #radio_stream = normalize(target=-3., window=0.5, gain_min=-15., gain_max=6., radio_stream)
   #radio_stream = normalize(target=0., window=0.03, gain_min=-12., gain_max=0., radio_stream)
   #radio_stream = normalize(radio_stream)
-   radio_stream = normalize(target=-6., window=0.1, gain_min=-15., gain_max=6., radio_stream)
+   radio_stream = normalize(target=-6., window=0.1, gain_min=-15., gain_max=10., radio_stream)
 
   # Apply dynamic range compression for more consistent loudness
   radio_stream = compress.exponential(mu=1.0, radio_stream)
