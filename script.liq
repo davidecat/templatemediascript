@@ -252,9 +252,9 @@ def init_playout_chain()
   
   # Apply moderate processing to ads for consistent loudness without distortion
   # First apply moderate compression to even out dynamics
-  ads = compress.exponential(mu=1.0, ads)
+  #ads = compress.exponential(mu=1.0, ads)
   # Then add gentle amplification / remove aplification
-  #ads = amplify(1.0, ads)  # 2.3dB boost
+  ads = amplify(1.0, ads)  # 2.3dB boost
   # Add limiter to prevent any clipping
   ads = limit(threshold=-6.0, attack=0.001, release=0.05, ads)
   log("INFO: Moderate compression (mu=5), 2.3dB boost, and soft limiting at -2dB applied to ads")
