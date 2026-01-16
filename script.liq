@@ -446,7 +446,7 @@ def init_playout_chain()
   # Process music with normalization and compression
   #processed_music = normalize(target=-6., window=0.1, gain_min=-15., gain_max=10., current_music_source)
   #processed_music = compress.exponential(mu=1.0, processed_music)
-  
+  processed_music = compress.exponential(mu=1.0, current_music_source)
   # Create the final stream with processed music and pre-processed ads
   # Ads already have amplification, compression, normalization, and limiting applied
   radio_stream = switch(track_sensitive=false,
