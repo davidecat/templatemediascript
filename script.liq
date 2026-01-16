@@ -254,9 +254,10 @@ def init_playout_chain()
   # First apply moderate compression to even out dynamics
   #ads = compress.exponential(mu=1.0, ads)
   # Then add gentle amplification / remove aplification
-  ads = amplify(1.0, ads)  # 2.3dB boost
+  ads = amplify(2.0, ads)  # 2.3dB boost
   # Add limiter to prevent any clipping
   ads = limit(threshold=-6.0, attack=0.001, release=0.05, ads)
+
   log("INFO: Moderate compression (mu=5), 2.3dB boost, and soft limiting at -2dB applied to ads")
 
   # Skip Logic: Clears the background music while ads are playing
@@ -450,7 +451,7 @@ def init_playout_chain()
   #processed_music = compress.exponential(mu=1.0, processed_music)
   # Create the final stream with processed music and pre-processed ads
   # Ads already have amplification, compression, normalization, and limiting applied
-  processed_music = limit(threshold=-12.0, attack=0.001, release=0.05, processed_music)
+  #processed_music = limit(threshold=-12.0, attack=0.001, release=0.05, processed_music)
   radio_stream = switch(track_sensitive=false,
     transitions=[custom_transition],
     [
