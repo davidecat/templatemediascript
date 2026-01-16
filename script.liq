@@ -433,7 +433,7 @@ def init_playout_chain()
     else
       # Music to Music: standard crossfade
       log("INFO: Transitioning between music tracks")
-      add([fade.out(duration=1.0, old), fade.in(duration=1.0, new)])
+      add([fade.out(duration=2.0, old), fade.in(duration=2.0, new)])
     end
   end
 
@@ -444,7 +444,7 @@ def init_playout_chain()
   # Apply different processing to music and ads to maintain ad loudness
   
   # Process music with normalization and compression
-  #processed_music = normalize(target=-6., window=0.1, gain_min=-15., gain_max=10., current_music_source)
+  processed_music = normalize(target=-12., window=0.1, gain_min=-15., gain_max=10., current_music_source)
   #processed_music = compress.exponential(mu=1.0, processed_music)
   #bypass normalisation 
   processed_music = compress.exponential(mu=1.0, current_music_source)
@@ -477,14 +477,14 @@ def init_playout_chain()
   log("INFO: EQ processing applied to final output")
 
   # Apply final normalization to ensure consistent output levels
-  final_output = normalize(target=-12., window=0.5, gain_min=-10., gain_max=6., final_radio_eq)
+  #final_output = normalize(target=-12., window=0.5, gain_min=-10., gain_max=6., final_radio_eq)
   log("INFO: Final normalization applied to output")
 
   # Output to Icecast
   out = output.icecast(%mp3(bitrate=int_of_string(icecast_bitrate())),
     host=icecast_host(), port=icecast_port(), mount=icecast_mount(),
     user=icecast_user(), password=icecast_pass(),
-    fallible=true, final_output)
+    fallible=true, final_radio_eq)
 
   ice_shutdown := [out.shutdown]
 end
