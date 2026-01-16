@@ -248,7 +248,7 @@ def init_playout_chain()
   ads = request.dynamic(id="ads", prefetch=1, {add_track("ad")})
   
   # Apply separate normalization to ads to make them louder
-  ads = normalize(target=-8., window=0.01, gain_min=-10., gain_max=15., ads)
+  ads = normalize(target=-10., window=0.01, gain_min=-10., gain_max=15., ads)
   log("INFO: Aggressive normalization applied to ads source")
 
   # Skip Logic: Clears the background music while ads are playing
