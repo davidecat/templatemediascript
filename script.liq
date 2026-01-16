@@ -450,6 +450,7 @@ def init_playout_chain()
   #processed_music = compress.exponential(mu=1.0, processed_music)
   # Create the final stream with processed music and pre-processed ads
   # Ads already have amplification, compression, normalization, and limiting applied
+  processed_music = limit(threshold=-12.0, attack=0.001, release=0.05, processed_music)
   radio_stream = switch(track_sensitive=false,
     transitions=[custom_transition],
     [
