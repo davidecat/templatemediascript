@@ -256,7 +256,7 @@ def init_playout_chain()
   # Then add gentle amplification
   ads = amplify(1.0, ads)  # 2.3dB boost
   # Add limiter to prevent any clipping
-  ads = limit(threshold=-2.0, attack=0.001, release=0.05, ads)
+  ads = limit(threshold=-4.0, attack=0.001, release=0.05, ads)
   log("INFO: Moderate compression (mu=5), 2.3dB boost, and soft limiting at -2dB applied to ads")
 
   # Skip Logic: Clears the background music while ads are playing
