@@ -475,11 +475,15 @@ def init_playout_chain()
   #final_radio_eq = final_radio
   log("INFO: EQ processing applied to final output")
 
+  # Apply final normalization to ensure consistent output levels
+  final_output = normalize(target=-3., window=0.5, gain_min=-10., gain_max=6., final_radio_eq)
+  log("INFO: Final normalization applied to output")
+
   # Output to Icecast
   out = output.icecast(%mp3(bitrate=int_of_string(icecast_bitrate())),
     host=icecast_host(), port=icecast_port(), mount=icecast_mount(),
     user=icecast_user(), password=icecast_pass(),
-    fallible=true, final_radio_eq)
+    fallible=true, final_output)
 
   ice_shutdown := [out.shutdown]
 end
