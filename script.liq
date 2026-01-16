@@ -249,16 +249,14 @@ def init_playout_chain()
   music_4m = request.dynamic(id="4minutesmusic", prefetch=1, {add_track("4minutesmusic")})
   ads = request.dynamic(id="ads", prefetch=1, {add_track("ad")})
   
-  # Apply aggressive fixed processing to ads for immediate loudness
-  # First add significant fixed amplification BEFORE compression
-  ads = amplify(4.0, ads)  # 12dB boost applied first
-  # Then apply heavy compression to control peaks
-  ads = compress.exponential(mu=25.0, ads)
-  # Add hard limiter to prevent clipping
-  ads = limit(threshold=-0.1, attack=0.0, release=0.01, ads)
-  # Final small boost after limiting
-  ads = amplify(1.2, ads)  # Additional 1.6dB
-  log("INFO: 12dB pre-boost, heavy compression (mu=25), hard limiting, and 1.6dB post-boost applied to ads")
+  # Apply moderate processing to ads for consistent loudness without distortion
+  # First apply moderate compression to even out dynamics
+  ads = compress.exponential(mu=5.0, ads)
+  # Then add gentle amplification
+  ads = amplify(1.3, ads)  # 2.3dB boost
+  # Add limiter to prevent any clipping
+  ads = limit(threshold=-1.0, attack=0.001, release=0.05, ads)
+  log("INFO: Moderate compression (mu=5), 2.3dB boost, and soft limiting at -1dB applied to ads")
 
   # Skip Logic: Clears the background music while ads are playing
   def skip_music_on_ad_or_ad(_)
