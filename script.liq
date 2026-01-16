@@ -252,11 +252,11 @@ def init_playout_chain()
   
   # Apply moderate processing to ads for consistent loudness without distortion
   # First apply moderate compression to even out dynamics
-  ads = compress.exponential(mu=5.0, ads)
-  # Then add gentle amplification
-  ads = amplify(1.0, ads)  # 2.3dB boost
+  ads = compress.exponential(mu=1.0, ads)
+  # Then add gentle amplification / remove aplification
+  #ads = amplify(1.0, ads)  # 2.3dB boost
   # Add limiter to prevent any clipping
-  ads = limit(threshold=-4.0, attack=0.001, release=0.05, ads)
+  ads = limit(threshold=-6.0, attack=0.001, release=0.05, ads)
   log("INFO: Moderate compression (mu=5), 2.3dB boost, and soft limiting at -2dB applied to ads")
 
   # Skip Logic: Clears the background music while ads are playing
@@ -446,6 +446,7 @@ def init_playout_chain()
   # Process music with normalization and compression
   #processed_music = normalize(target=-6., window=0.1, gain_min=-15., gain_max=10., current_music_source)
   #processed_music = compress.exponential(mu=1.0, processed_music)
+  #bypass normalisation 
   processed_music = compress.exponential(mu=1.0, current_music_source)
   # Create the final stream with processed music and pre-processed ads
   # Ads already have amplification, compression, normalization, and limiting applied
