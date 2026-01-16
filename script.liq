@@ -215,10 +215,12 @@ def add_track(stream)
   end
 
   # CRITICAL: Force start at 0.0 and ignore blank skipping
+  # For ads, disable autocue completely to avoid any processing delays
   track_uri = if stream == "music" or stream == "4minutesmusic" then
     'autocue:annotate:liq_cue_in=0.0,liq_blankskip=0.0,liq_cue_file=false:'^j.data.asset_path
   else
-    'autocue:annotate:liq_cue_in=0.0,liq_blankskip=0.0,liq_cue_file=false:'^j.data.asset_path
+    # Disable autocue for ads to prevent any initial processing delay
+    'annotate:liq_cue_file=false:'^j.data.asset_path
   end
   request.create(track_uri)
 end
@@ -247,9 +249,16 @@ def init_playout_chain()
   music_4m = request.dynamic(id="4minutesmusic", prefetch=1, {add_track("4minutesmusic")})
   ads = request.dynamic(id="ads", prefetch=1, {add_track("ad")})
   
-  # Apply separate normalization to ads to make them louder
-  ads = normalize(target=-10., window=0.01, gain_min=-10., gain_max=15., ads)
-  log("INFO: Aggressive normalization applied to ads source")
+  # Apply aggressive fixed processing to ads for immediate loudness
+  # First add significant fixed amplification BEFORE compression
+  ads = amplify(4.0, ads)  # 12dB boost applied first
+  # Then apply heavy compression to control peaks
+  ads = compress.exponential(mu=25.0, ads)
+  # Add hard limiter to prevent clipping
+  ads = limit(threshold=-0.1, attack=0.0, release=0.01, ads)
+  # Final small boost after limiting
+  ads = amplify(1.2, ads)  # Additional 1.6dB
+  log("INFO: 12dB pre-boost, heavy compression (mu=25), hard limiting, and 1.6dB post-boost applied to ads")
 
   # Skip Logic: Clears the background music while ads are playing
   def skip_music_on_ad_or_ad(_)
@@ -415,42 +424,41 @@ def init_playout_chain()
       log("INFO: Transitioning from ad to ad - no fade")
       add([fade.out(duration=0.0, old), fade.in(duration=0.0, new)])
     elsif not old_is_ads and new_is_ads then
-      # Music to Ads: slightly longer fade-in to reduce volume shock
+      # Music to Ads: no fade-in for immediate full volume
       log("INFO: Transitioning from music to ads")
       add([fade.out(duration=1.0, old), fade.in(duration=0.0, new)])
     elsif old_is_ads and not new_is_ads then
       # Ads to Music: smooth return to music
       log("INFO: Transitioning from ads to music")
-      add([fade.out(duration=0.01, old), fade.in(duration=0.01, new)])
+      add([fade.out(duration=0.0, old), fade.in(duration=0.01, new)])
     else
       # Music to Music: standard crossfade
       log("INFO: Transitioning between music tracks")
       add([fade.out(duration=1.0, old), fade.in(duration=1.0, new)])
     end
   end
-  
-  # Final Sequential Stream with Custom Fade Transition
-  radio_stream = switch(track_sensitive=false,
-    transitions=[custom_transition],
-    [
-      ({source.is_ready(ad_selector)}, ad_selector),
-      ({true}, current_music_source)
-    ]
-  )
 
  # ============================================================================
   # AUDIO ENHANCEMENT
   # ============================================================================
   
-  # Normalize audio levels to ensure consistent volume across all content
-  #radio_stream = normalize(target=-3., window=0.5, gain_min=-15., gain_max=6., radio_stream)
-  #radio_stream = normalize(target=0., window=0.03, gain_min=-12., gain_max=0., radio_stream)
-  #radio_stream = normalize(radio_stream)
-   radio_stream = normalize(target=-12., window=0.1, gain_min=-15., gain_max=4., radio_stream)
-
-  # Apply dynamic range compression for more consistent loudness
-  radio_stream = compress.exponential(mu=1.0, radio_stream)
-  log("INFO: Audio normalization and compression applied")
+  # Apply different processing to music and ads to maintain ad loudness
+  
+  # Process music with normalization and compression
+  processed_music = normalize(target=-6., window=0.1, gain_min=-15., gain_max=10., current_music_source)
+  processed_music = compress.exponential(mu=1.0, processed_music)
+  
+  # Create the final stream with processed music and pre-processed ads
+  # Ads already have amplification, compression, normalization, and limiting applied
+  radio_stream = switch(track_sensitive=false,
+    transitions=[custom_transition],
+    [
+      ({source.is_ready(ad_selector)}, ad_selector),
+      ({true}, processed_music)
+    ]
+  )
+  
+  log("INFO: Separate audio processing applied - music normalized, ads pre-processed")
 
 
   # Prayer Time Integration
