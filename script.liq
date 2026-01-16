@@ -247,7 +247,8 @@ def init_playout_chain()
 
   music = request.dynamic(id="music", prefetch=1, {add_track("music")})
   music_4m = request.dynamic(id="4minutesmusic", prefetch=1, {add_track("4minutesmusic")})
-  ads = request.dynamic(id="ads", prefetch=1, {add_track("ad")})
+  # Increase prefetch for ads to give processing chain more initialization time
+  ads = request.dynamic(id="ads", prefetch=3, {add_track("ad")})
   
   # Apply moderate processing to ads for consistent loudness without distortion
   # First apply moderate compression to even out dynamics
@@ -258,20 +259,19 @@ def init_playout_chain()
   ads = limit(threshold=-1.0, attack=0.001, release=0.05, ads)
   log("INFO: Moderate compression (mu=5), 2.3dB boost, and soft limiting at -1dB applied to ads")
 
-  # Skip Logic: DISABLED - Testing if this causes ad volume issues
-  # def skip_music_on_ad_or_ad(_)
-  #   # We wait for the transition to finish before skipping
-  #   thread.run(delay=2.5, fun() -> begin
-  #     log("INFO: Flushing music background for fresh restart")
-  #     if current_loop() == "J" or current_loop() == "K" or current_loop() == "H" or current_loop() == "I" then
-  #       music_4m.skip()
-  #     else
-  #       music.skip()
-  #     end
-  #   end)
-  # end
-  # ads.on_track(skip_music_on_ad_or_ad)
-  log("INFO: Music skip on ad playback DISABLED for testing")
+  # Skip Logic: Clears the background music while ads are playing
+  def skip_music_on_ad_or_ad(_)
+    # We wait for the transition to finish before skipping
+    thread.run(delay=2.5, fun() -> begin
+      log("INFO: Flushing music background for fresh restart")
+      if current_loop() == "J" or current_loop() == "K" or current_loop() == "H" or current_loop() == "I" then
+        music_4m.skip()
+      else
+        music.skip()
+      end
+    end)
+  end
+  ads.on_track(skip_music_on_ad_or_ad)
 
   # Determine current music source based on loop type [cite: 146]
   current_music_source = switch(track_sensitive=false, [
