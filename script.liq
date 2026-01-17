@@ -468,45 +468,96 @@ def init_playout_chain()
     if next_ad > 0 then next_ad - time_in_hour else -1 end
   end
   
-  # Create a faded version of music using built-in fade operator
-  # This avoids the glitch from rapid amplify changes
-  music_with_fade = fade.out(duration=2.0, processed_music)
+  # Variable to track fade state and volume
+  fade_volume = ref(1.0)
+  fade_active = ref(false)
+  fade_start_time = ref(0.0)
   
-  # Variable to track if we should be fading
-  should_fade = ref(false)
-  
-  # Monitor for when to start fading
-  thread.run(every=0.1, fun() -> begin
+  # Thread to monitor and control fade timing
+  thread.run(every=0.05, fun() -> begin
     secs_to_ads = seconds_until_ads()
     
-    # Start fade 2 seconds before ads
-    if secs_to_ads >= 0 and secs_to_ads <= 2 and not should_fade() then
-      should_fade := true
-      log("INFO: Starting fade out, ads in #{secs_to_ads} seconds")
+    # More detailed logging
+    if secs_to_ads >= 0 and secs_to_ads <= 10 then
+      time_info = time.utc()
+      current_sec = time_info.sec
+      log("DEBUG: Seconds until ads: #{secs_to_ads}, current second: #{current_sec}, fade active: #{fade_active()}, volume: #{fade_volume()}")
     end
     
-    # Reset fade state when ads start
-    if source.is_ready(ad_selector) and should_fade() then
-      should_fade := false
-      log("INFO: Ads started, resetting fade state")
+    # Start fade 4 seconds before ads (2s fade + 2s buffer)
+    if secs_to_ads >= 0 and secs_to_ads <= 4 and not fade_active() then
+      fade_active := true
+      fade_start_time := time.up()
+      log("CRITICAL: Starting fade out NOW, ads in #{secs_to_ads} seconds, fade_start_time: #{fade_start_time()}")
+      log("CRITICAL: Current loop: #{current_loop()}, time in hour: #{(time.utc().min * 60 + time.utc().sec) mod 3600}")
     end
     
-    # Also reset if we've passed the ad time without ads starting
-    if secs_to_ads < 0 and should_fade() then
-      should_fade := false
+    # Update fade volume during fade
+    if fade_active() then
+      current_time = time.up()
+      elapsed = current_time - fade_start_time()
+      
+      # Calculate volume (2 second fade)
+      if elapsed < 2.0 then
+        new_volume = 1.0 - (elapsed / 2.0)
+        fade_volume := new_volume
+        log("DEBUG: Fade elapsed: #{elapsed}s, volume: #{new_volume}")
+      else
+        # Fade complete, hold at 0
+        fade_volume := 0.0
+        log("DEBUG: Fade complete, volume: 0.0")
+      end
+    end
+    
+    # Reset when ads start
+    if source.is_ready(ad_selector) and fade_active() then
+      fade_active := false
+      fade_volume := 1.0
+      log("INFO: Ads started, resetting fade")
+    end
+    
+    # Also reset if no ads are coming
+    if secs_to_ads < 0 and fade_active() then
+      fade_active := false
+      fade_volume := 1.0
     end
   end)
   
-  # Create a smart music source that switches between normal and fading music
-  smart_music = switch(track_sensitive=false, [
-    ({should_fade()}, music_with_fade),
-    ({true}, processed_music)
-  ])
+  # Apply the fade using amplify with the controlled volume
+  smart_music = amplify(id="smart_music_fade",
+    fun() -> fade_volume(),
+    processed_music)
+  
+  # Create a variable to track when we should actually play ads
+  # This will be controlled by our timing logic, not by source.is_ready
+  play_ads_now = ref(false)
+  
+  # Add another thread to control when ads actually play
+  thread.run(every=0.1, fun() -> begin
+    # Check if ad_selector is ready
+    if source.is_ready(ad_selector) then
+      # If we just became ready and haven't started playing ads yet
+      if not play_ads_now() then
+        # Check if we've completed the fade (or don't need to fade)
+        if not fade_active() or (time.up() - fade_start_time()) >= 2.0 then
+          play_ads_now := true
+          log("CRITICAL: Now switching to ads after fade complete")
+        end
+      end
+    else
+      # Ads no longer ready, reset
+      if play_ads_now() then
+        play_ads_now := false
+        log("INFO: Ads finished, switching back to music")
+      end
+    end
+  end)
   
   # Main switch with track_sensitive=false for exact timing
+  # Now we use our controlled flag instead of source.is_ready
   radio_stream = switch(track_sensitive=false,
     [
-      ({source.is_ready(ad_selector)}, ad_selector),
+      ({play_ads_now()}, ad_selector),
       ({true}, smart_music)
     ]
   )
