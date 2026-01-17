@@ -27,6 +27,7 @@ last_skip_block = ref(-1)
 last_skip_loop = ref("")
 prayer_times = ref([])
 prayer_enabled = ref(true)
+current_source_type = ref("music")
 
 # EQ Configuration Variables
 eq_preset = ref("flat")
@@ -216,11 +217,12 @@ def add_track(stream)
 
   # CRITICAL: Force start at 0.0 and ignore blank skipping
   # For ads, disable autocue completely to avoid any processing delays
+  # Add metadata to identify track type
   track_uri = if stream == "music" or stream == "4minutesmusic" then
-    'autocue:annotate:liq_cue_in=0.0,liq_blankskip=0.0,liq_cue_file=false:'^j.data.asset_path
+    'autocue:annotate:liq_cue_in=0.0,liq_blankskip=0.0,liq_cue_file=false,track_type="music":'^j.data.asset_path
   else
     # Disable autocue for ads to prevent any initial processing delay
-    'annotate:liq_cue_file=false:'^j.data.asset_path
+    'annotate:liq_cue_file=false,track_type="ad":'^j.data.asset_path
   end
   request.create(track_uri)
 end
@@ -262,6 +264,8 @@ def init_playout_chain()
 
   # Skip Logic: Clears the background music while ads are playing
   def skip_music_on_ad_or_ad(_)
+    # Mark that we're playing ads
+    current_source_type := "ads"
     # We wait for the transition to finish before skipping
     thread.run(delay=0.5, fun() -> begin
       log("INFO: Flushing music background for fresh restart")
@@ -273,6 +277,13 @@ def init_playout_chain()
     end)
   end
   ads.on_track(skip_music_on_ad_or_ad)
+  
+  # Track when music starts playing
+  def on_music_track(_)
+    current_source_type := "music"
+  end
+  music.on_track(on_music_track)
+  music_4m.on_track(on_music_track)
 
   # Determine current music source based on loop type [cite: 146]
   current_music_source = switch(track_sensitive=false, [
@@ -280,7 +291,7 @@ def init_playout_chain()
     ({true}, music)
   ])
 
-  # Ad Scheduler using specific predicates for all loops including J and K [cite: 147-167]
+  # Ad Scheduler using specific predicates for all loops including J and K
   ad_selector = switch(track_sensitive=true, all_predicates=true, [
       # Loops A, B, J, K (4 ads per 5 mins)
       (predicate.at_most(4, {4m and (current_loop() == "A" or current_loop() == "B" or current_loop() == "J" or current_loop() == "K")}), ads),
@@ -408,41 +419,36 @@ def init_playout_chain()
       (predicate.at_most(3, {59m40s and current_loop() == "E"}), ads)
   ])
 
-  # Custom transition function with different fades for music and ads
+  # Custom transition function - simplified approach
+  # Since detection is unreliable, we'll use the current_source_type tracking
   def custom_transition(old, new)
-    # Check source types based on source IDs
-    old_id = source.id(old)
-    new_id = source.id(new)
+    # Check what was playing before (tracked by on_track callbacks)
+    old_is_ads = current_source_type() == "ads"
     
-    # Check if sources are ads by comparing IDs
-    old_is_ads = string.contains(substring="ads", old_id)
-    new_is_ads = string.contains(substring="ads", new_id)
+    # For new source detection, we'll rely on the next track's type
+    # which gets set by the on_track callbacks
     
     # Add diagnostic logging
-    log("DEBUG: Transition - Old source ID: #{old_id}, New source ID: #{new_id}")
-    log("DEBUG: Old is ads: #{old_is_ads}, New is ads: #{new_is_ads}")
+    log("DEBUG: Transition - Current source type: #{current_source_type()}")
     
-    if old_is_ads and new_is_ads then
-      # Ad to Ad: no transition between consecutive ads
-      log("INFO: Transitioning from ad to ad - no fade")
-      add([fade.out(duration=0.0, old), fade.in(duration=0.0, new)])
-    elsif not old_is_ads and new_is_ads then
-      # Music to Ads: 2s fade out, 2s silence, then ads without fade-in
-      log("INFO: Transitioning from music to ads with 2s fade out and 2s silence")
-      # Delay the new source (ads) by 4 seconds (2s fade + 2s silence)
+    # Since we can't reliably detect the new source type, we'll use a simple approach:
+    # If old was ads, we're likely transitioning to music
+    # If old was music, check if enough time has passed for ads
+    
+    if old_is_ads then
+      # Ads to Music: smooth return to music
+      log("INFO: Transitioning from ads to music")
+      add([fade.out(duration=0.0, old), fade.in(duration=0.01, new)])
+    else
+      # Might be Music to Ads or Music to Music
+      # Use the requested transition: 2s fade out, 2s silence for ads
+      log("INFO: Transitioning from music - applying fade out with silence gap")
+      # Delay the new source by 4 seconds (2s fade + 2s silence)
       delayed_new = delay(4.0, new)
       # Create a source that plays old (fading out) for 2s, then silence for 2s
       old_with_silence = sequence([fade.out(duration=2.0, old), blank(duration=2.0)])
       # Combine them: first 4s is old_with_silence, then switch to delayed_new
       fallback([old_with_silence, delayed_new])
-    elsif old_is_ads and not new_is_ads then
-      # Ads to Music: smooth return to music
-      log("INFO: Transitioning from ads to music")
-      add([fade.out(duration=0.0, old), fade.in(duration=0.01, new)])
-    else
-      # Music to Music: standard crossfade
-      log("INFO: Transitioning between music tracks")
-      add([fade.out(duration=2.0, old), fade.in(duration=2.0, new)])
     end
   end
 
