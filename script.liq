@@ -249,6 +249,15 @@ def init_playout_chain()
 
   music = request.dynamic(id="music", prefetch=1, {add_track("music")})
   music_4m = request.dynamic(id="4minutesmusic", prefetch=1, {add_track("4minutesmusic")})
+  
+  # Variable to track if we just came from ads
+  just_finished_ads = ref(false)
+  
+  # Apply crossfade to each music source individually
+  # This avoids clock conflicts by applying crossfade before the switch
+  music_crossfaded = crossfade(duration=2.0, music)
+  music_4m_crossfaded = crossfade(duration=2.0, music_4m)
+  
   # Increase prefetch for ads to give processing chain more initialization time
   ads = request.dynamic(id="ads", prefetch=1, {add_track("ad")})
   
@@ -278,17 +287,24 @@ def init_playout_chain()
   end
   ads.on_track(skip_music_on_ad_or_ad)
   
-  # Track when music starts playing
+  # Track when music starts playing and reset crossfade flag
   def on_music_track(_)
     current_source_type := "music"
+    # Reset crossfade flag after ads
+    if just_finished_ads() then
+      just_finished_ads := false
+      log("INFO: Crossfade re-enabled for future transitions")
+    end
   end
   music.on_track(on_music_track)
   music_4m.on_track(on_music_track)
 
-  # Determine current music source based on loop type [cite: 146]
+  # Determine current music source based on loop type and crossfade state
   current_music_source = switch(track_sensitive=false, [
-    ({current_loop() == "J" or current_loop() == "K" or current_loop() == "H" or current_loop() == "I"}, music_4m),
-    ({true}, music)
+    ({just_finished_ads() and (current_loop() == "J" or current_loop() == "K" or current_loop() == "H" or current_loop() == "I")}, music_4m),
+    ({just_finished_ads()}, music),
+    ({current_loop() == "J" or current_loop() == "K" or current_loop() == "H" or current_loop() == "I"}, music_4m_crossfaded),
+    ({true}, music_crossfaded)
   ])
 
   # Ad Scheduler using specific predicates for all loops including J and K
@@ -425,35 +441,8 @@ def init_playout_chain()
   
   # Apply different processing to music and ads to maintain ad loudness
   
-  # Variable to track if we just came from ads
-  just_finished_ads = ref(false)
-  
-  # Apply crossfade conditionally - not after ads
-  # First create both versions
-  crossfaded_music = crossfade(duration=2.0, current_music_source)
-  non_crossfaded_music = current_music_source
-  
-  # Use switch to select between crossfaded and non-crossfaded based on state
-  conditional_music = switch(track_sensitive=false, [
-    ({just_finished_ads()}, non_crossfaded_music),
-    ({true}, crossfaded_music)
-  ])
-  
-  # Reset the flag when a music track starts
-  def on_music_track_after_ads(_)
-    if just_finished_ads() then
-      just_finished_ads := false
-      log("INFO: Crossfade re-enabled for future transitions")
-    end
-  end
-  
-  # Attach the handler to both music sources
-  music.on_track(on_music_track_after_ads)
-  music_4m.on_track(on_music_track_after_ads)
-  
-  # Process music with normalization and compression
-  #processed_music = normalize(target=-16., window=0.1, gain_min=-15., gain_max=6., conditional_music)
-  processed_music = conditional_music
+  # Process music without crossfade first
+  processed_music = current_music_source
   #processed_music = compress.exponential(mu=1.0, processed_music)
   #bypass normalisation 
   #processed_music = compress.exponential(mu=1.0, processed_music)
