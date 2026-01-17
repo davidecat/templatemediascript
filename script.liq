@@ -418,52 +418,6 @@ def init_playout_chain()
       (predicate.at_most(3, {59m20s and current_loop() == "E"}), ads),
       (predicate.at_most(3, {59m40s and current_loop() == "E"}), ads)
   ])
-  
-  # Custom transition function - detect source types
-  def custom_transition(a, b)
-    log("CRITICAL: Custom transition called!")
-    
-    # Get the current source type from our tracking
-    old_is_ads = current_source_type() == "ads"
-    
-    # For the new source, we'll check if it's ready (which means it's being selected)
-    # When switching to ads, ad_selector will be ready
-    new_is_ads = source.is_ready(ad_selector)
-    
-    # Add diagnostic logging
-    log("DEBUG: Transition - Old type: #{current_source_type()}, New is ads: #{new_is_ads}")
-    log("DEBUG: Source A ID: #{source.id(a)}, Source B ID: #{source.id(b)}")
-    
-    # Update current source type for next transition
-    if new_is_ads then
-      current_source_type := "ads"
-    else
-      current_source_type := "music"
-    end
-    
-    if old_is_ads and new_is_ads then
-      # Ad to Ad: no transition between consecutive ads
-      log("INFO: Transitioning from ad to ad - no fade")
-      add([fade.out(duration=0.0, a), fade.in(duration=0.0, b)])
-    elsif not old_is_ads and new_is_ads then
-      # Music to Ads: 2s fade out, 2s silence, then ads without fade-in
-      log("INFO: Transitioning from music to ads with 2s fade out and 2s silence")
-      # Delay the new source by 4 seconds (2s fade + 2s silence)
-      delayed_new = delay(4.0, b)
-      # Create a source that plays old (fading out) for 2s, then silence for 2s
-      old_with_silence = sequence([fade.out(duration=2.0, a), blank(duration=2.0)])
-      # Combine them: first 4s is old_with_silence, then switch to delayed_new
-      fallback([old_with_silence, delayed_new])
-    elsif old_is_ads and not new_is_ads then
-      # Ads to Music: smooth return to music
-      log("INFO: Transitioning from ads to music")
-      add([fade.out(duration=0.0, a), fade.in(duration=0.01, b)])
-    else
-      # Music to Music: standard crossfade
-      log("INFO: Transitioning between music tracks")
-      add([fade.out(duration=2.0, a), fade.in(duration=2.0, b)])
-    end
-  end
 
  # ============================================================================
   # AUDIO ENHANCEMENT
@@ -480,11 +434,85 @@ def init_playout_chain()
   # Create the final stream with processed music and pre-processed ads
   # Ads already have amplification, compression, normalization, and limiting applied
   #processed_music = limit(threshold=-12.0, attack=0.001, release=0.05, processed_music)
-  radio_stream = switch(track_sensitive=true,
-    transitions=[custom_transition],
+  # Create a smart music source that fades out before ads
+  # We'll monitor the time and apply fade/silence when ads are about to start
+  
+  # Variables to track fade state
+  fade_start_time = ref(-1.0)
+  
+  # Function to check if we're approaching ad time
+  def seconds_until_ads()
+    time_in_hour = (time.utc().min * 60 + time.utc().sec) mod 3600
+    
+    # Get all ad times based on current loop
+    ad_times = if current_loop() == "A" or current_loop() == "B" or current_loop() == "J" or current_loop() == "K" then
+      [240, 255, 270, 285, 540, 555, 570, 585, 840, 855, 870, 885,
+       1140, 1155, 1170, 1185, 1440, 1455, 1470, 1485, 1740, 1755, 1770, 1785,
+       2040, 2055, 2070, 2085, 2340, 2355, 2370, 2385, 2640, 2655, 2670, 2685,
+       2940, 2955, 2970, 2985, 3240, 3255, 3270, 3285, 3540, 3555, 3570, 3585]
+    elsif current_loop() == "C" then
+      [240, 260, 280, 540, 560, 580, 840, 860, 880, 1140, 1160, 1180,
+       1440, 1460, 1480, 1740, 1760, 1780, 2040, 2060, 2080, 2340, 2360, 2380,
+       2640, 2660, 2680, 2940, 2960, 2980, 3240, 3260, 3280, 3540, 3560, 3580]
+    elsif current_loop() == "D" then
+      [540, 560, 580, 1140, 1160, 1180, 1740, 1760, 1780, 
+       2340, 2360, 2380, 2940, 2960, 2980, 3540, 3560, 3580]
+    elsif current_loop() == "E" then
+      [840, 860, 880, 1740, 1760, 1780, 2640, 2660, 2680, 3540, 3560, 3580]
+    else
+      []
+    end
+    
+    # Find the next ad time
+    next_ad = list.fold(fun(acc, t) -> 
+      if t > time_in_hour and (acc < 0 or t < acc) then t else acc end,
+      -1, ad_times)
+    
+    if next_ad > 0 then next_ad - time_in_hour else -1 end
+  end
+  
+  # Create a source that applies fade and silence before ads
+  smart_music = amplify(id="smart_music", 
+    fun() -> begin
+      secs_to_ads = seconds_until_ads()
+      
+      # Start fade 4 seconds before ads
+      if secs_to_ads >= 0 and secs_to_ads <= 4 and fade_start_time() < 0.0 then
+        fade_start_time := time.up()
+        log("INFO: Starting fade out, ads in #{secs_to_ads} seconds")
+      end
+      
+      # Reset fade state when ads start
+      if source.is_ready(ad_selector) and fade_start_time() >= 0.0 then
+        fade_start_time := -1.0
+        log("INFO: Ads started, resetting fade state")
+      end
+      
+      # Calculate volume based on fade state
+      if fade_start_time() >= 0.0 then
+        elapsed = time.up() - fade_start_time()
+        if elapsed < 2.0 then
+          # Fade out over 2 seconds
+          1.0 - (elapsed / 2.0)
+        elsif elapsed < 4.0 then
+          # Silence for 2 seconds
+          0.0
+        else
+          # Normal volume (shouldn't happen as ads will start)
+          1.0
+        end
+      else
+        # Normal volume
+        1.0
+      end
+    end,
+    processed_music)
+  
+  # Main switch with track_sensitive=false for exact timing
+  radio_stream = switch(track_sensitive=false,
     [
       ({source.is_ready(ad_selector)}, ad_selector),
-      ({true}, processed_music)
+      ({true}, smart_music)
     ]
   )
   
