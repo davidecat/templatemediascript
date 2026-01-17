@@ -471,13 +471,13 @@ def init_playout_chain()
     if next_ad > 0 then next_ad - time_in_hour else -1 end
   end
   
-  # Create a source that applies fade and silence before ads
+  # Create a source that applies fade before ads
   smart_music = amplify(id="smart_music", 
     fun() -> begin
       secs_to_ads = seconds_until_ads()
       
-      # Start fade 4 seconds before ads
-      if secs_to_ads >= 0 and secs_to_ads <= 4 and fade_start_time() < 0.0 then
+      # Start fade 2 seconds before ads
+      if secs_to_ads >= 0 and secs_to_ads <= 2 and fade_start_time() < 0.0 then
         fade_start_time := time.up()
         log("INFO: Starting fade out, ads in #{secs_to_ads} seconds")
       end
@@ -494,12 +494,9 @@ def init_playout_chain()
         if elapsed < 2.0 then
           # Fade out over 2 seconds
           1.0 - (elapsed / 2.0)
-        elsif elapsed < 4.0 then
-          # Silence for 2 seconds
-          0.0
         else
-          # Normal volume (shouldn't happen as ads will start)
-          1.0
+          # Fade complete, volume at 0
+          0.0
         end
       else
         # Normal volume
