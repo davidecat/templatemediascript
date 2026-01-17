@@ -425,9 +425,13 @@ def init_playout_chain()
   
   # Apply different processing to music and ads to maintain ad loudness
   
+  # First apply crossfade to music source before any other processing
+  # Using the same static mixing technique as fade-out
+  crossfaded_music = crossfade(duration=2.0, current_music_source)
+  
   # Process music with normalization and compression
-  #processed_music = normalize(target=-16., window=0.1, gain_min=-15., gain_max=6., current_music_source)
-  processed_music = current_music_source
+  #processed_music = normalize(target=-16., window=0.1, gain_min=-15., gain_max=6., crossfaded_music)
+  processed_music = crossfaded_music
   #processed_music = compress.exponential(mu=1.0, processed_music)
   #bypass normalisation 
   #processed_music = compress.exponential(mu=1.0, processed_music)
