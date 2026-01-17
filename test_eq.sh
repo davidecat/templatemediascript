@@ -1,4 +1,4 @@
-#!/bin/bash
+q#!/bin/bash
 
 # Test script for EQ functionality
 USER_ID="$1"
