@@ -248,13 +248,13 @@ def init_playout_chain()
   music = request.dynamic(id="music", prefetch=1, {add_track("music")})
   music_4m = request.dynamic(id="4minutesmusic", prefetch=1, {add_track("4minutesmusic")})
   # Increase prefetch for ads to give processing chain more initialization time
-  #ads = request.dynamic(id="ads", prefetch=1, {add_track("ad")})
+  ads = request.dynamic(id="ads", prefetch=1, {add_track("ad")})
   
   # Apply moderate processing to ads for consistent loudness without distortion
   # First apply moderate compression to even out dynamics
   #ads = compress.exponential(mu=1.0, ads)
   # Then add gentle amplification / remove aplification
-  ads = amplify(2.0, ads)  # 2.3dB boost
+  #ads = amplify(2.0, ads)  # 2.3dB boost
   # Add limiter to prevent any clipping
   #ads = limit(threshold=-6.0, attack=0.001, release=0.05, ads)
 
