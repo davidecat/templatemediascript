@@ -424,13 +424,13 @@ def init_playout_chain()
       log("INFO: Transitioning from ad to ad - no fade")
       add([fade.out(duration=0.0, old), fade.in(duration=0.0, new)])
     elsif not old_is_ads and new_is_ads then
-      # Music to Ads: 2s fade out, 2s silence, then ads without fade-in
+      # Music to Ads: 2s fade out, 1s silence, then ads without fade-in
       log("INFO: Transitioning from music to ads with 2s fade out and 2s silence")
-      # Delay the new source (ads) by 4 seconds (2s fade + 2s silence)
-      delayed_new = delay(4.0, new)
-      # Create a source that plays old (fading out) for 2s, then silence for 2s
-      old_with_silence = sequence([fade.out(duration=2.0, old), blank(duration=2.0)])
-      # Combine them: first 4s is old_with_silence, then switch to delayed_new
+      # Delay the new source (ads) by 3 seconds (2s fade + 1s silence)
+      delayed_new = delay(3.0, new)
+      # Create a source that plays old (fading out) for 2s, then silence for 1s
+      old_with_silence = sequence([fade.out(duration=2.0, old), blank(duration=1.0)])
+      # Combine them: first 3s is old_with_silence, then switch to delayed_new
       fallback([old_with_silence, delayed_new])
     elsif old_is_ads and not new_is_ads then
       # Ads to Music: smooth return to music
