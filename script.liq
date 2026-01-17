@@ -437,9 +437,6 @@ def init_playout_chain()
   # Create a smart music source that fades out before ads
   # We'll monitor the time and apply fade/silence when ads are about to start
   
-  # Variables to track fade state
-  fade_start_time = ref(-1.0)
-  
   # Function to check if we're approaching ad time
   def seconds_until_ads()
     time_in_hour = (time.utc().min * 60 + time.utc().sec) mod 3600
@@ -471,43 +468,40 @@ def init_playout_chain()
     if next_ad > 0 then next_ad - time_in_hour else -1 end
   end
   
-  # Create a source that applies smooth fade before ads
-  # Use a smoother interpolation to avoid glitches
-  smart_music = amplify(id="smart_music", 
-    fun() -> begin
-      secs_to_ads = seconds_until_ads()
-      
-      # Start fade 2 seconds before ads
-      if secs_to_ads >= 0 and secs_to_ads <= 2 and fade_start_time() < 0.0 then
-        fade_start_time := time.up()
-        log("INFO: Starting fade out, ads in #{secs_to_ads} seconds")
-      end
-      
-      # Reset fade state when ads start
-      if source.is_ready(ad_selector) and fade_start_time() >= 0.0 then
-        fade_start_time := -1.0
-        log("INFO: Ads started, resetting fade state")
-      end
-      
-      # Calculate volume with smooth interpolation
-      if fade_start_time() >= 0.0 then
-        elapsed = time.up() - fade_start_time()
-        if elapsed < 2.0 then
-          # Use cosine interpolation for smoother fade
-          # This creates a more natural fade curve
-          fade_position = elapsed / 2.0
-          volume = (1.0 + cos(fade_position * 3.14159)) / 2.0
-          volume
-        else
-          # Fade complete, volume at 0
-          0.0
-        end
-      else
-        # Normal volume
-        1.0
-      end
-    end,
-    processed_music)
+  # Create a faded version of music using built-in fade operator
+  # This avoids the glitch from rapid amplify changes
+  music_with_fade = fade.out(duration=2.0, processed_music)
+  
+  # Variable to track if we should be fading
+  should_fade = ref(false)
+  
+  # Monitor for when to start fading
+  thread.run(every=0.1, fun() -> begin
+    secs_to_ads = seconds_until_ads()
+    
+    # Start fade 2 seconds before ads
+    if secs_to_ads >= 0 and secs_to_ads <= 2 and not should_fade() then
+      should_fade := true
+      log("INFO: Starting fade out, ads in #{secs_to_ads} seconds")
+    end
+    
+    # Reset fade state when ads start
+    if source.is_ready(ad_selector) and should_fade() then
+      should_fade := false
+      log("INFO: Ads started, resetting fade state")
+    end
+    
+    # Also reset if we've passed the ad time without ads starting
+    if secs_to_ads < 0 and should_fade() then
+      should_fade := false
+    end
+  end)
+  
+  # Create a smart music source that switches between normal and fading music
+  smart_music = switch(track_sensitive=false, [
+    ({should_fade()}, music_with_fade),
+    ({true}, processed_music)
+  ])
   
   # Main switch with track_sensitive=false for exact timing
   radio_stream = switch(track_sensitive=false,
@@ -536,14 +530,14 @@ def init_playout_chain()
   log("INFO: EQ processing applied to final output")
 
   # Apply final normalization to ensure consistent output levels
-  final_output = normalize(target=-12., window=0.01, gain_min=-10., gain_max=6., final_radio_eq)
+  #final_output = normalize(target=-12., window=0.01, gain_min=-10., gain_max=6., final_radio_eq)
   log("INFO: Final normalization applied to output")
 
   # Output to Icecast
   out = output.icecast(%mp3(bitrate=int_of_string(icecast_bitrate())),
     host=icecast_host(), port=icecast_port(), mount=icecast_mount(),
     user=icecast_user(), password=icecast_pass(),
-    fallible=true, final_output)
+    fallible=true, final_radio_eq)
 
   ice_shutdown := [out.shutdown]
 end
