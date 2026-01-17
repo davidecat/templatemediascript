@@ -1,7 +1,7 @@
 # Liquidsoap EQ System Documentation
 
 ## Overview
-This implementation adds a professional 10-band graphic equalizer with presets to your Liquidsoap radio automation script. The EQ is applied to the final output stream before Icecast transmission, ensuring consistent audio processing across all content (music, ads, prayer times).
+This implementation adds a professional 10-band graphic equalizer with presets to your Liquidsoap radio automation script. The system now supports **separate EQ presets for music and ads**, allowing optimal audio processing for different content types. Music EQ is applied to music tracks, while ads get their own specialized EQ presets optimized for voice clarity and impact.
 
 ## Installation
 

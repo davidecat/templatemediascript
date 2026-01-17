@@ -30,7 +30,9 @@ prayer_enabled = ref(true)
 
 # EQ Configuration Variables
 eq_preset = ref("flat")
+eq_preset_ads = ref("ad_clarity")  # Separate EQ preset for ads
 eq_config_file = "/home/oooomedia/liq_scripts/configs/#{user_id()}_eq.conf"
+eq_config_file_ads = "/home/oooomedia/liq_scripts/configs/#{user_id()}_eq_ads.conf"
 eq_available = ref(true)
 
 # Icecast Variables
@@ -67,6 +69,15 @@ def get_eq_preset_params(preset_name)
     [3.0, 1.0, 0.0, 1.0, 2.0, 1.0, 0.0, 1.0, 3.0, 2.0]
   elsif preset_name == "classical" then
     [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 2.0]
+  elsif preset_name == "ad_clarity" then
+    # Optimized for voice clarity in ads
+    [-2.0, -1.0, 0.0, 1.0, 3.0, 4.0, 3.0, 2.0, 1.0, 0.0]
+  elsif preset_name == "ad_punch" then
+    # More aggressive voice enhancement for impact
+    [-3.0, -2.0, 0.0, 2.0, 4.0, 5.0, 4.0, 3.0, 2.0, 1.0]
+  elsif preset_name == "ad_warm" then
+    # Warmer, fuller voice tone
+    [0.0, 1.0, 1.0, 2.0, 3.0, 3.0, 2.0, 1.0, 0.0, -1.0]
   else
     [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
   end
@@ -107,14 +118,49 @@ def save_eq_preset()
   end
 end
 
-# Apply EQ to audio stream using basic amplification
-def apply_eq_to_stream(source)
+# Load EQ preset for ads from config file
+def load_eq_preset_ads()
+  try
+    if file.exists(eq_config_file_ads) then
+      content = file.contents(eq_config_file_ads)
+      preset = string.trim(content)
+      if list.mem(preset, ["flat", "ad_clarity", "ad_punch", "ad_warm"]) then
+        eq_preset_ads := preset
+        log("INFO: Ads EQ preset loaded: #{preset}")
+      else
+        log("WARNING: Invalid ads EQ preset in config file, using ad_clarity")
+        eq_preset_ads := "ad_clarity"
+      end
+    else
+      log("INFO: No ads EQ config file found, using default preset: ad_clarity")
+      eq_preset_ads := "ad_clarity"
+    end
+  catch err do
+    log("ERROR: Failed to load ads EQ preset: #{err}, using ad_clarity")
+    eq_preset_ads := "ad_clarity"
+  end
+end
+
+# Save EQ preset for ads to config file
+def save_eq_preset_ads()
+  try
+    # Ensure config directory exists
+    ignore(process.run("mkdir -p /home/oooomedia/liq_scripts/configs"))
+    file.write(data=eq_preset_ads(), eq_config_file_ads)
+    log("INFO: Ads EQ preset saved: #{eq_preset_ads()}")
+  catch err do
+    log("ERROR: Failed to save ads EQ preset: #{err}")
+  end
+end
+
+# Apply EQ to audio stream with specific preset
+def apply_eq_to_stream_with_preset(source, preset_name)
   if not eq_available() then
     log("WARNING: EQ not available, bypassing")
     source
   else
     try
-      preset_params = get_eq_preset_params(eq_preset())
+      preset_params = get_eq_preset_params(preset_name)
       
       # Calculate overall gain adjustment based on preset
       # Focus on the most important frequency ranges for radio
@@ -130,14 +176,14 @@ def apply_eq_to_stream(source)
         # Apply gentle gain adjustment (max ±3dB)
         gain_factor = 1.0 + (total_gain * 0.03)
         if gain_factor > 0.1 and gain_factor < 3.0 then
-          log("INFO: Basic EQ applied with preset: #{eq_preset()} (gain: #{total_gain}dB)")
+          log("INFO: Basic EQ applied with preset: #{preset_name} (gain: #{total_gain}dB)")
           amplify(gain_factor, source)
         else
           log("INFO: EQ gain factor out of bounds, bypassing")
           source
         end
       else
-        log("INFO: EQ preset has no gain adjustment: #{eq_preset()}")
+        log("INFO: EQ preset has no gain adjustment: #{preset_name}")
         source
       end
     catch err do
@@ -146,6 +192,11 @@ def apply_eq_to_stream(source)
       source
     end
   end
+end
+
+# Apply EQ to audio stream using basic amplification
+def apply_eq_to_stream(source)
+  apply_eq_to_stream_with_preset(source, eq_preset())
 end
 
 # Test EQ availability (amplify should always be available)
@@ -244,22 +295,13 @@ def init_playout_chain()
   # Initialize EQ system
   test_eq_availability()
   load_eq_preset()
+  load_eq_preset_ads()
 
   music = request.dynamic(id="music", prefetch=1, {add_track("music")})
   music_4m = request.dynamic(id="4minutesmusic", prefetch=1, {add_track("4minutesmusic")})
   # Increase prefetch for ads to give processing chain more initialization time
   ads = request.dynamic(id="ads", prefetch=1, {add_track("ad")})
   
-  # Apply moderate processing to ads for consistent loudness without distortion
-  # First apply moderate compression to even out dynamics
-  #ads = compress.exponential(mu=1.0, ads)
-  # Then add gentle amplification / remove aplification
-  #ads = amplify(2.0, ads)  # 2.3dB boost
-  # Add limiter to prevent any clipping
-  #ads = limit(threshold=-6.0, attack=0.001, release=0.05, ads)
-
-  log("INFO: Moderate compression (mu=5), 2.3dB boost, and soft limiting at -2dB applied to ads")
-
   # Skip Logic: Clears the background music while ads are playing
   def skip_music_on_ad_or_ad(_)
     # We wait for the transition to finish before skipping
@@ -273,6 +315,20 @@ def init_playout_chain()
     end)
   end
   ads.on_track(skip_music_on_ad_or_ad)
+  
+  # Apply ad-specific EQ after setting up event handlers
+  ads = apply_eq_to_stream_with_preset(ads, eq_preset_ads())
+  log("INFO: Ad-specific EQ applied with preset: #{eq_preset_ads()}")
+  
+  # Apply moderate processing to ads for consistent loudness without distortion
+  # First apply moderate compression to even out dynamics
+  #ads = compress.exponential(mu=1.0, ads)
+  # Then add gentle amplification / remove aplification
+  #ads = amplify(2.0, ads)  # 2.3dB boost
+  # Add limiter to prevent any clipping
+  #ads = limit(threshold=-6.0, attack=0.001, release=0.05, ads)
+
+  log("INFO: Moderate compression (mu=5), 2.3dB boost, and soft limiting at -2dB applied to ads")
 
   # Determine current music source based on loop type [cite: 146]
   current_music_source = switch(track_sensitive=false, [
@@ -444,9 +500,13 @@ def init_playout_chain()
   
   # Apply different processing to music and ads to maintain ad loudness
   
-  # Process music with normalization and compression
-  #processed_music = normalize(target=-16., window=0.1, gain_min=-15., gain_max=6., current_music_source)
+  # Process music with EQ
   processed_music = current_music_source
+  processed_music = apply_eq_to_stream(processed_music)
+  log("INFO: Music-specific EQ applied with preset: #{eq_preset()}")
+  
+  # Process music with normalization and compression if needed
+  #processed_music = normalize(target=-16., window=0.1, gain_min=-15., gain_max=6., processed_music)
   #processed_music = compress.exponential(mu=1.0, processed_music)
   #bypass normalisation 
   #processed_music = compress.exponential(mu=1.0, processed_music)
@@ -471,23 +531,22 @@ def init_playout_chain()
   ])
 
   # ============================================================================
-  # EQUALIZER APPLICATION
+  # FINAL OUTPUT
   # ============================================================================
   
-  # Apply EQ to final output (after all processing, before Icecast)
-  final_radio_eq = apply_eq_to_stream(final_radio)
-  #final_radio_eq = final_radio
-  log("INFO: EQ processing applied to final output")
+  # EQ has been applied separately to music and ads
+  # No additional EQ needed on the final output
+  log("INFO: Separate EQ processing completed for music and ads")
 
   # Apply final normalization to ensure consistent output levels
-  #final_output = normalize(target=-12., window=0.5, gain_min=-10., gain_max=6., final_radio_eq)
-  log("INFO: Final normalization applied to output")
+  #final_output = normalize(target=-12., window=0.5, gain_min=-10., gain_max=6., final_radio)
+  #log("INFO: Final normalization applied to output")
 
   # Output to Icecast
   out = output.icecast(%mp3(bitrate=int_of_string(icecast_bitrate())),
     host=icecast_host(), port=icecast_port(), mount=icecast_mount(),
     user=icecast_user(), password=icecast_pass(),
-    fallible=true, final_radio_eq)
+    fallible=true, final_radio)
 
   ice_shutdown := [out.shutdown]
 end
@@ -550,6 +609,94 @@ def req_eq_preset_get(_, res)
   res.status_message(eq_json)
 end
 
+# Ads EQ preset GET endpoint
+def req_eq_preset_ads_get(_, res)
+  # Return current ads preset and available presets
+  eq_json = "{" ^
+    "\"current_preset\":\"#{eq_preset_ads()}\"," ^
+    "\"available_presets\":[\"flat\",\"ad_clarity\",\"ad_punch\",\"ad_warm\"]," ^
+    "\"eq_available\":#{string_of(eq_available())}" ^
+    "}"
+  
+  res.status_code(200)
+  res.content_type("application/json")
+  res.status_message(eq_json)
+end
+
+# EQ preset POST endpoint for changing music EQ preset
+def req_eq_preset_post(req, res)
+  try
+    # Parse query parameters - they come as a list of tuples
+    params = req.query
+    new_preset = ref("")
+    
+    # Find the preset parameter
+    list.iter(fun(p) -> if fst(p) == "preset" then new_preset := snd(p) end, params)
+    
+    if new_preset() != "" then
+      if list.mem(new_preset(), ["flat", "vocal_boost", "bass_heavy", "bright", "warm", "radio_classic", "pop", "rock", "classical"]) then
+        eq_preset := new_preset()
+        save_eq_preset()
+        res.status_code(200)
+        res.content_type("text/plain")
+        res.status_message("SUCCESS: Music EQ preset changed to #{new_preset()}")
+        log("INFO: Music EQ preset changed to #{new_preset()}")
+      else
+        res.status_code(400)
+        res.content_type("text/plain")
+        res.status_message("ERROR: Invalid preset. Available: flat, vocal_boost, bass_heavy, bright, warm, radio_classic, pop, rock, classical")
+        log("WARNING: Invalid music EQ preset requested: #{new_preset()}")
+      end
+    else
+      res.status_code(400)
+      res.content_type("text/plain")
+      res.status_message("ERROR: No preset parameter provided")
+    end
+  catch err do
+    log("ERROR: Failed to change music EQ preset: #{err}")
+    res.status_code(500)
+    res.content_type("text/plain")
+    res.status_message("ERROR: Internal server error")
+  end
+end
+
+# Ads EQ preset POST endpoint for changing ads EQ preset
+def req_eq_preset_ads_post(req, res)
+  try
+    # Parse query parameters - they come as a list of tuples
+    params = req.query
+    new_preset = ref("")
+    
+    # Find the preset parameter
+    list.iter(fun(p) -> if fst(p) == "preset" then new_preset := snd(p) end, params)
+    
+    if new_preset() != "" then
+      if list.mem(new_preset(), ["flat", "ad_clarity", "ad_punch", "ad_warm"]) then
+        eq_preset_ads := new_preset()
+        save_eq_preset_ads()
+        res.status_code(200)
+        res.content_type("text/plain")
+        res.status_message("SUCCESS: Ads EQ preset changed to #{new_preset()}")
+        log("INFO: Ads EQ preset changed to #{new_preset()}")
+      else
+        res.status_code(400)
+        res.content_type("text/plain")
+        res.status_message("ERROR: Invalid preset. Available: flat, ad_clarity, ad_punch, ad_warm")
+        log("WARNING: Invalid ads EQ preset requested: #{new_preset()}")
+      end
+    else
+      res.status_code(400)
+      res.content_type("text/plain")
+      res.status_message("ERROR: No preset parameter provided")
+    end
+  catch err do
+    log("ERROR: Failed to change ads EQ preset: #{err}")
+    res.status_code(500)
+    res.content_type("text/plain")
+    res.status_message("ERROR: Internal server error")
+  end
+end
+
 # Health check endpoint
 def req_health(_, res)
   # Create JSON response string manually since Liquidsoap doesn't support object literals
@@ -564,6 +711,7 @@ def req_health(_, res)
     "\"prayer_enabled\":#{string_of(prayer_enabled())}," ^
     "\"is_prayer_time\":#{is_prayer_time()}," ^
     "\"eq_preset\":\"#{eq_preset()}\"," ^
+    "\"eq_preset_ads\":\"#{eq_preset_ads()}\"," ^
     "\"eq_available\":#{string_of(eq_available())}" ^
     "}"
 
@@ -576,17 +724,24 @@ end
 harbor.http.register(port=7000, method="GET", "/restart_#{user_id()}", req_restart)
 harbor.http.register(port=7000, method="GET", "/shutdown_#{user_id()}", req_shutdown)
 harbor.http.register(port=7000, method="GET", "/health_#{user_id()}", req_health)
-# Register EQ GET endpoint only for now
+# Register Music EQ endpoints
 harbor.http.register(port=7000, method="GET", "/eq_preset_#{user_id()}", req_eq_preset_get)
+harbor.http.register(port=7000, method="POST", "/eq_preset_#{user_id()}", req_eq_preset_post)
+# Register Ads EQ endpoints
+harbor.http.register(port=7000, method="GET", "/eq_preset_ads_#{user_id()}", req_eq_preset_ads_get)
+harbor.http.register(port=7000, method="POST", "/eq_preset_ads_#{user_id()}", req_eq_preset_ads_post)
 
 log("INFO: HTTP endpoints registered on port 7000")
 log("INFO: Available endpoints:")
 log("INFO:   - GET /restart_#{user_id()} - Restart playout chain")
 log("INFO:   - GET /shutdown_#{user_id()} - Shutdown script")
 log("INFO:   - GET /health_#{user_id()} - Health check")
-log("INFO:   - GET /eq_preset_#{user_id()} - Get current EQ preset")
-log("INFO:   - POST /eq_preset_#{user_id()}?preset=<name> - Change EQ preset")
-log("INFO: Available EQ presets: flat, vocal_boost, bass_heavy, bright, warm, radio_classic, pop, rock, classical")
+log("INFO:   - GET /eq_preset_#{user_id()} - Get current music EQ preset")
+log("INFO:   - POST /eq_preset_#{user_id()}?preset=<name> - Change music EQ preset")
+log("INFO:   - GET /eq_preset_ads_#{user_id()} - Get current ads EQ preset")
+log("INFO:   - POST /eq_preset_ads_#{user_id()}?preset=<name> - Change ads EQ preset")
+log("INFO: Music EQ presets: flat, vocal_boost, bass_heavy, bright, warm, radio_classic, pop, rock, classical")
+log("INFO: Ads EQ presets: flat, ad_clarity, ad_punch, ad_warm")
 
 
 
