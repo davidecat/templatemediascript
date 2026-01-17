@@ -444,9 +444,9 @@ def init_playout_chain()
       # Use the requested transition: 2s fade out, 2s silence for ads
       log("INFO: Transitioning from music - applying fade out with silence gap")
       # Delay the new source by 4 seconds (2s fade + 2s silence)
-      delayed_new = delay(4.0, new)
-      # Create a source that plays old (fading out) for 2s, then silence for 2s
-      old_with_silence = sequence([fade.out(duration=2.0, old), blank(duration=2.0)])
+      delayed_new = delay(2.0, new)
+      # Create a source that plays old (fading out) for 2s, then silence for 0s
+      old_with_silence = sequence([fade.out(duration=2.0, old), blank(duration=0.0)])
       # Combine them: first 4s is old_with_silence, then switch to delayed_new
       fallback([old_with_silence, delayed_new])
     end
