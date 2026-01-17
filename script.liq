@@ -259,7 +259,7 @@ def init_playout_chain()
   #ads = amplify(2.0, ads)  # 2.3dB boost
   # Add limiter to prevent any clipping
   #ads = limit(threshold=-6.0, attack=0.001, release=0.05, ads)
-  ads = amplify(5.0, ads)  # 2.3dB boost
+  ads = amplify(4.0, ads)  # 2.3dB boost
   log("INFO: Moderate compression (mu=5), 2.3dB boost, and soft limiting at -2dB applied to ads")
 
   # Skip Logic: Clears the background music while ads are playing
@@ -425,13 +425,35 @@ def init_playout_chain()
   
   # Apply different processing to music and ads to maintain ad loudness
   
-  # First apply crossfade to music source before any other processing
-  # Using the same static mixing technique as fade-out
+  # Variable to track if we just came from ads
+  just_finished_ads = ref(false)
+  
+  # Apply crossfade conditionally - not after ads
+  # First create both versions
   crossfaded_music = crossfade(duration=2.0, current_music_source)
+  non_crossfaded_music = current_music_source
+  
+  # Use switch to select between crossfaded and non-crossfaded based on state
+  conditional_music = switch(track_sensitive=false, [
+    ({just_finished_ads()}, non_crossfaded_music),
+    ({true}, crossfaded_music)
+  ])
+  
+  # Reset the flag when a music track starts
+  def on_music_track_after_ads(_)
+    if just_finished_ads() then
+      just_finished_ads := false
+      log("INFO: Crossfade re-enabled for future transitions")
+    end
+  end
+  
+  # Attach the handler to both music sources
+  music.on_track(on_music_track_after_ads)
+  music_4m.on_track(on_music_track_after_ads)
   
   # Process music with normalization and compression
-  #processed_music = normalize(target=-16., window=0.1, gain_min=-15., gain_max=6., crossfaded_music)
-  processed_music = crossfaded_music
+  #processed_music = normalize(target=-16., window=0.1, gain_min=-15., gain_max=6., conditional_music)
+  processed_music = conditional_music
   #processed_music = compress.exponential(mu=1.0, processed_music)
   #bypass normalisation 
   #processed_music = compress.exponential(mu=1.0, processed_music)
@@ -519,7 +541,8 @@ def init_playout_chain()
       if play_ads_now() then
         play_ads_now := false
         fade_start_time := -1.0
-        log("INFO: Ads finished, back to music")
+        just_finished_ads := true
+        log("INFO: Ads finished, back to music - crossfade disabled for next track")
       end
     end
   end)
