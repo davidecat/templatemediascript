@@ -317,6 +317,7 @@ def init_playout_chain()
   ads.on_track(skip_music_on_ad_or_ad)
   
   # Apply ad-specific EQ after setting up event handlers
+  ads = amplify(2.0, ads)  # 2.3dB boost
   ads = apply_eq_to_stream_with_preset(ads, eq_preset_ads())
   log("INFO: Ad-specific EQ applied with preset: #{eq_preset_ads()}")
   
@@ -695,9 +696,6 @@ def req_eq_preset_ads_post(req, res)
     res.content_type("text/plain")
     res.status_message("ERROR: Internal server error")
   end
-end
-
-# Health check endpoint
 def req_health(_, res)
   # Create JSON response string manually since Liquidsoap doesn't support object literals
   status_json = "{" ^
