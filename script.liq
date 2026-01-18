@@ -279,13 +279,13 @@ def init_playout_chain()
   music_raw = request.dynamic(id="music", prefetch=1, {add_track("music")})
   music_4m_raw = request.dynamic(id="4minutesmusic", prefetch=1, {add_track("4minutesmusic")})
 
-  # Apply crossfade to music sources using Liquidsoap's built-in crossfade() function
-  # This creates a 3-second crossfade between consecutive tracks:
-  # - Last 3 seconds of track A fade out
-  # - First 3 seconds of track B fade in
-  # - Both play simultaneously during the overlap
-  music = crossfade(duration=3.0, music_raw)
-  music_4m = crossfade(duration=3.0, music_4m_raw)
+  # Apply crossfade to music sources
+  # This creates a 3-second crossfade where:
+  # - Old track fades out over 3 seconds
+  # - New track starts at full volume (no fade-in)
+  # Using fade_out only on the outgoing track
+  music = crossfade(fade_in=0.0, fade_out=3.0, duration=3.0, music_raw)
+  music_4m = crossfade(fade_in=0.0, fade_out=3.0, duration=3.0, music_4m_raw)
   
   # Variable to track if we just came from ads
   just_finished_ads = ref(false)
