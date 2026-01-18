@@ -564,8 +564,34 @@ def init_playout_chain()
   # Update track timing on new tracks
   def update_track_timing(metadata)
     track_start_time := time.up()
-    # Try to get duration from metadata
-    duration_str = list.assoc(format="", "duration", metadata)
+    
+    # Log all available metadata keys to find the correct duration key
+    log("DEBUG: Available metadata keys:")
+    list.iter(fun(item) -> log("DEBUG: - #{fst(item)}: #{snd(item)}"), metadata)
+    
+    # Try different possible duration keys
+    duration_str = list.assoc(default="", "duration", metadata)
+    duration_str = if duration_str == "" then
+      list.assoc(default="", "length", metadata)
+    else
+      duration_str
+    end
+    duration_str = if duration_str == "" then
+      list.assoc(default="", "liquidsoap_duration", metadata)
+    else
+      duration_str
+    end
+    duration_str = if duration_str == "" then
+      list.assoc(default="", "liq_duration", metadata)
+    else
+      duration_str
+    end
+    duration_str = if duration_str == "" then
+      list.assoc(default="", "time", metadata)
+    else
+      duration_str
+    end
+    
     if duration_str != "" then
       try
         duration = float_of_string(duration_str)
