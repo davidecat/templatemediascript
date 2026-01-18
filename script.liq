@@ -565,7 +565,7 @@ def init_playout_chain()
   def update_track_timing(metadata)
     track_start_time := time.up()
     # Try to get duration from metadata
-    duration_str = list.assoc(default="", "duration", metadata)
+    duration_str = list.assoc(format="", "duration", metadata)
     if duration_str != "" then
       try
         duration = float_of_string(duration_str)
