@@ -210,19 +210,41 @@ def add_track(stream)
   j = api_call(base_uri()^"/#{stream}")
   current_loop := j.data.loop
 
- # Log ad file names specifically
+  # Log ad file names specifically
   if stream == "ad" then
     log("INFO: Prefetching ad file: #{j.data.asset_path}")
+  end
+  
+  # Get duration of the file
+  duration = 0.0
+  try
+    # Try to get duration directly from the file path
+    duration = request.duration(j.data.asset_path)
+    if duration > 0.0 then
+      log("INFO: Got duration from file: #{duration}s for #{j.data.asset_path}")
+    else
+      log("WARNING: Could not get duration for #{j.data.asset_path}")
+    end
+  catch err do
+    log("ERROR: Failed to get duration: #{err}")
   end
 
   # CRITICAL: Force start at 0.0 and ignore blank skipping
   # For ads, disable autocue completely to avoid any processing delays
-  # Add metadata to identify track type
+  # Add metadata to identify track type and include duration
   track_uri = if stream == "music" or stream == "4minutesmusic" then
-    'autocue:annotate:liq_cue_in=0.0,liq_blankskip=0.0,liq_cue_file=false,track_type="music":'^j.data.asset_path
+    if duration > 0.0 then
+      'autocue:annotate:liq_cue_in=0.0,liq_blankskip=0.0,liq_cue_file=false,track_type="music",duration="#{duration}":'^j.data.asset_path
+    else
+      'autocue:annotate:liq_cue_in=0.0,liq_blankskip=0.0,liq_cue_file=false,track_type="music":'^j.data.asset_path
+    end
   else
     # Disable autocue for ads to prevent any initial processing delay
-    'annotate:liq_cue_file=false,track_type="ad":'^j.data.asset_path
+    if duration > 0.0 then
+      'annotate:liq_cue_file=false,track_type="ad",duration="#{duration}":'^j.data.asset_path
+    else
+      'annotate:liq_cue_file=false,track_type="ad":'^j.data.asset_path
+    end
   end
   request.create(track_uri)
 end
