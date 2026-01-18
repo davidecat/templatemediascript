@@ -572,13 +572,24 @@ def init_playout_chain()
         track_duration := duration
         log("INFO: Track duration from metadata: #{duration}s")
       catch _ do
-        # Default duration if not available
-        track_duration := 180.0  # Assume 3 minute tracks
-        log("INFO: Using default track duration: 180s")
+        # Default duration if not available - use 4 minutes for loop J/K, 5 minutes for others
+        if current_loop() == "J" or current_loop() == "K" or current_loop() == "H" or current_loop() == "I" then
+          track_duration := 240.0  # 4 minute tracks
+          log("INFO: Using default track duration for 4-minute loop: 240s")
+        else
+          track_duration := 300.0  # 5 minute tracks as safer default
+          log("INFO: Using default track duration: 300s")
+        end
       end
     else
-      track_duration := 180.0
-      log("INFO: No duration in metadata, using default: 180s")
+      # No duration in metadata, use appropriate default
+      if current_loop() == "J" or current_loop() == "K" or current_loop() == "H" or current_loop() == "I" then
+        track_duration := 240.0  # 4 minute tracks
+        log("INFO: No duration metadata, using 4-minute default: 240s")
+      else
+        track_duration := 300.0  # 5 minute tracks as safer default
+        log("INFO: No duration metadata, using 5-minute default: 300s")
+      end
     end
   end
   
@@ -641,25 +652,6 @@ def init_playout_chain()
           music_4m.skip()
         else
           music.skip()
-        end
-      end
-    end
-  end)
-  
-  # Add a manual trigger for testing - trigger crossfade after 30 seconds for testing
-  thread.run(every=1.0, fun() -> begin
-    if not crossfade_active() and current_source_type() == "music" and track_start_time() > 0.0 then
-      elapsed = time.up() - track_start_time()
-      # For testing: trigger crossfade after 30 seconds
-      if elapsed >= 30.0 and elapsed <= 31.0 then
-        log("TEST: Forcing crossfade for testing after 30s")
-        crossfade_active := true
-        crossfade_start_time := time.up()
-        
-        if current_loop() == "J" or current_loop() == "K" or current_loop() == "H" or current_loop() == "I" then
-          next_music_source := music_4m_next
-        else
-          next_music_source := music_next
         end
       end
     end
