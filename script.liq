@@ -586,58 +586,22 @@ def init_playout_chain()
   # Update track timing on new tracks
   def update_track_timing(metadata)
     track_start_time := time.up()
-    
-    # Log all available metadata keys to find the correct duration key
-    log("DEBUG: Available metadata keys:")
-    list.iter(fun(item) -> log("DEBUG: - #{fst(item)}: #{snd(item)}"), metadata)
-    
-    # Try different possible duration keys
+
+    # Get duration from metadata (set in add_track function)
     duration_str = list.assoc(default="", "duration", metadata)
-    duration_str = if duration_str == "" then
-      list.assoc(default="", "length", metadata)
-    else
-      duration_str
-    end
-    duration_str = if duration_str == "" then
-      list.assoc(default="", "liquidsoap_duration", metadata)
-    else
-      duration_str
-    end
-    duration_str = if duration_str == "" then
-      list.assoc(default="", "liq_duration", metadata)
-    else
-      duration_str
-    end
-    duration_str = if duration_str == "" then
-      list.assoc(default="", "time", metadata)
-    else
-      duration_str
-    end
-    
+
     if duration_str != "" then
       try
         duration = float_of_string(duration_str)
         track_duration := duration
         log("INFO: Track duration from metadata: #{duration}s")
-      catch _ do
-        # Default duration if not available - use 4 minutes for loop J/K, 5 minutes for others
-        if current_loop() == "J" or current_loop() == "K" or current_loop() == "H" or current_loop() == "I" then
-          track_duration := 240.0  # 4 minute tracks
-          log("INFO: Using default track duration for 4-minute loop: 240s")
-        else
-          track_duration := 300.0  # 5 minute tracks as safer default
-          log("INFO: Using default track duration: 300s")
-        end
+      catch err do
+        log("WARNING: Failed to parse duration from metadata: #{err}")
+        track_duration := 0.0
       end
     else
-      # No duration in metadata, use appropriate default
-      if current_loop() == "J" or current_loop() == "K" or current_loop() == "H" or current_loop() == "I" then
-        track_duration := 240.0  # 4 minute tracks
-        log("INFO: No duration metadata, using 4-minute default: 240s")
-      else
-        track_duration := 300.0  # 5 minute tracks as safer default
-        log("INFO: No duration metadata, using 5-minute default: 300s")
-      end
+      log("WARNING: No duration in metadata")
+      track_duration := 0.0
     end
   end
   
