@@ -234,9 +234,9 @@ def add_track(stream)
   # Add metadata to identify track type and include duration
   track_uri = if stream == "music" or stream == "4minutesmusic" then
     if duration > 0.0 then
-      'autocue:annotate:liq_cue_in=0.0,liq_blankskip=0.0,liq_cue_file=false,track_type="music",duration=#{duration}:'^j.data.asset_path
+      'annotate:liq_cue_in=0.0,liq_blankskip=0.0,liq_cue_file=false,track_type="music",duration=#{duration}:'^j.data.asset_path
     else
-      'autocue:annotate:liq_cue_in=0.0,liq_blankskip=0.0,liq_cue_file=false,track_type="music":'^j.data.asset_path
+      'annotate:liq_cue_in=0.0,liq_blankskip=0.0,liq_cue_file=false,track_type="music":'^j.data.asset_path
     end
   else
     # Disable autocue for ads to prevent any initial processing delay
