@@ -323,7 +323,7 @@ def init_playout_chain()
   ads.on_track(skip_music_on_ad_or_ad)
   
   # Track when music starts playing and reset crossfade flag
-  def on_music_track(metadata)
+  def on_music_track(_)
     current_source_type := "music"
     # Reset crossfade flag after ads
     if just_finished_ads() then
@@ -805,6 +805,45 @@ def req_eq_preset_get(_, res)
   res.status_message(eq_json)
 end
 
+# EQ preset POST endpoint - change EQ preset
+def req_eq_preset_post(req, res)
+  # Get preset from query parameter
+  preset = req.query.preset
+  
+  if preset == "" then
+    res.status_code(400)
+    res.content_type("application/json")
+    res.status_message("{\"error\":\"Missing preset parameter\"}")
+  elsif list.mem(preset, ["flat", "vocal_boost", "bass_heavy", "bright", "warm", "radio_classic", "pop", "rock", "classical"]) then
+    # Valid preset, update and save
+    eq_preset := preset
+    save_eq_preset()
+    
+    log("INFO: EQ preset changed to: #{preset}")
+    
+    # Return success response
+    success_json = "{" ^
+      "\"status\":\"success\"," ^
+      "\"message\":\"EQ preset changed to #{preset}\"," ^
+      "\"current_preset\":\"#{preset}\"" ^
+      "}"
+    
+    res.status_code(200)
+    res.content_type("application/json")
+    res.status_message(success_json)
+  else
+    # Invalid preset
+    error_json = "{" ^
+      "\"error\":\"Invalid preset: #{preset}\"," ^
+      "\"available_presets\":[\"flat\",\"vocal_boost\",\"bass_heavy\",\"bright\",\"warm\",\"radio_classic\",\"pop\",\"rock\",\"classical\"]" ^
+      "}"
+    
+    res.status_code(400)
+    res.content_type("application/json")
+    res.status_message(error_json)
+  end
+end
+
 # Health check endpoint
 def req_health(_, res)
   # Create JSON response string manually since Liquidsoap doesn't support object literals
@@ -831,8 +870,9 @@ end
 harbor.http.register(port=7000, method="GET", "/restart_#{user_id()}", req_restart)
 harbor.http.register(port=7000, method="GET", "/shutdown_#{user_id()}", req_shutdown)
 harbor.http.register(port=7000, method="GET", "/health_#{user_id()}", req_health)
-# Register EQ GET endpoint only for now
+# Register EQ endpoints
 harbor.http.register(port=7000, method="GET", "/eq_preset_#{user_id()}", req_eq_preset_get)
+#harbor.http.register(port=7000, method="POST", "/eq_preset_#{user_id()}", req_eq_preset_post)
 
 log("INFO: HTTP endpoints registered on port 7000")
 log("INFO: Available endpoints:")
