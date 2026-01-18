@@ -587,6 +587,10 @@ def init_playout_chain()
   def update_track_timing(metadata)
     track_start_time := time.up()
 
+    # Debug: Log all available metadata keys
+    log("DEBUG: Available metadata keys:")
+    list.iter(fun(item) -> log("DEBUG: - #{fst(item)} = #{snd(item)}"), metadata)
+
     # Get duration from metadata (set in add_track function)
     duration_str = list.assoc(default="", "duration", metadata)
 
