@@ -331,36 +331,7 @@ def init_playout_chain()
       log("INFO: Crossfade re-enabled for future transitions")
     end
     
-    # Try to get track duration from metadata
-    duration_str = list.assoc(default="", "duration", metadata)
-    if duration_str != "" then
-      try
-        duration = float_of_string(duration_str)
-        if duration > 0.0 then
-          log("INFO: Music track started, duration: #{duration}s")
-          # Schedule crossfade preparation 3 seconds before track ends
-          if duration > 5.0 and not just_finished_ads() then
-            thread.run(delay=duration - 3.0, fun() -> begin
-              # Only start crossfade if ads aren't coming soon
-              if seconds_until_ads() < 0 or seconds_until_ads() > 5 then
-                log("INFO: Preparing crossfade for next track")
-                crossfade_active := true
-                crossfade_start_time := time.up()
-                
-                # Prepare next track based on loop
-                if current_loop() == "J" or current_loop() == "K" or current_loop() == "H" or current_loop() == "I" then
-                  next_music_source := music_4m_next
-                else
-                  next_music_source := music_next
-                end
-              end
-            end)
-          end
-        end
-      catch _ do
-        log("DEBUG: Could not parse duration from metadata")
-      end
-    end
+    log("INFO: Music track started, monitoring for crossfade opportunity")
   end
   music.on_track(on_music_track)
   music_4m.on_track(on_music_track)
@@ -586,21 +557,109 @@ def init_playout_chain()
   next_music_80 = add(weights=[0.8, 0.2], [next_music_for_crossfade, blank()])
   next_music_90 = add(weights=[0.9, 0.1], [next_music_for_crossfade, blank()])
   
-  # Thread to monitor crossfade timing
-  thread.run(every=0.1, fun() -> begin
+  # Variables to track track timing
+  track_start_time = ref(-1.0)
+  track_duration = ref(0.0)
+  
+  # Update track timing on new tracks
+  def update_track_timing(metadata)
+    track_start_time := time.up()
+    # Try to get duration from metadata
+    duration_str = list.assoc(default="", "duration", metadata)
+    if duration_str != "" then
+      try
+        duration = float_of_string(duration_str)
+        track_duration := duration
+        log("INFO: Track duration from metadata: #{duration}s")
+      catch _ do
+        # Default duration if not available
+        track_duration := 180.0  # Assume 3 minute tracks
+        log("INFO: Using default track duration: 180s")
+      end
+    else
+      track_duration := 180.0
+      log("INFO: No duration in metadata, using default: 180s")
+    end
+  end
+  
+  # Add timing update to on_track handlers
+  music.on_track(update_track_timing)
+  music_4m.on_track(update_track_timing)
+  
+  # Thread to monitor for crossfade opportunity
+  thread.run(every=0.2, fun() -> begin
+    # Check if we should start crossfade
+    if not crossfade_active() and not just_finished_ads() and current_source_type() == "music" and track_start_time() > 0.0 then
+      # Calculate elapsed time
+      elapsed = time.up() - track_start_time()
+      remaining = track_duration() - elapsed
+      
+      # Log timing every 10 seconds when near the end
+      if remaining <= 10.0 and remaining > 0.0 and int_of_float(elapsed) mod 10 == 0 then
+        log("DEBUG: Track elapsed: #{elapsed}s, remaining: #{remaining}s")
+      end
+      
+      # Start crossfade when track has 3 seconds remaining
+      if remaining > 0.0 and remaining <= 3.0 then
+        # Only start crossfade if ads aren't coming soon
+        secs_to_ads = seconds_until_ads()
+        if secs_to_ads < 0 or secs_to_ads > 5 then
+          log("CRITICAL: Starting crossfade - track remaining: #{remaining}s")
+          crossfade_active := true
+          crossfade_start_time := time.up()
+          
+          # Prepare next track based on loop
+          if current_loop() == "J" or current_loop() == "K" or current_loop() == "H" or current_loop() == "I" then
+            next_music_source := music_4m_next
+          else
+            next_music_source := music_next
+          end
+        else
+          log("INFO: Track ending but ads coming in #{secs_to_ads}s, skipping crossfade")
+        end
+      end
+    end
+    
+    # Monitor active crossfade
     if crossfade_active() then
       elapsed = time.up() - crossfade_start_time()
+      
+      # Log crossfade progress
+      if int_of_float(elapsed * 10.0) mod 5 == 0 then
+        log("DEBUG: Crossfade progress: #{elapsed}s / 2.0s")
+      end
+      
       if elapsed >= 2.0 then
         # Crossfade complete, reset
         crossfade_active := false
         crossfade_start_time := -1.0
-        log("INFO: Crossfade complete")
+        track_start_time := -1.0  # Reset track timing
+        log("INFO: Crossfade complete, switching to next track")
         
         # Skip the old source to clean up
         if current_loop() == "J" or current_loop() == "K" or current_loop() == "H" or current_loop() == "I" then
           music_4m.skip()
         else
           music.skip()
+        end
+      end
+    end
+  end)
+  
+  # Add a manual trigger for testing - trigger crossfade after 30 seconds for testing
+  thread.run(every=1.0, fun() -> begin
+    if not crossfade_active() and current_source_type() == "music" and track_start_time() > 0.0 then
+      elapsed = time.up() - track_start_time()
+      # For testing: trigger crossfade after 30 seconds
+      if elapsed >= 30.0 and elapsed <= 31.0 then
+        log("TEST: Forcing crossfade for testing after 30s")
+        crossfade_active := true
+        crossfade_start_time := time.up()
+        
+        if current_loop() == "J" or current_loop() == "K" or current_loop() == "H" or current_loop() == "I" then
+          next_music_source := music_4m_next
+        else
+          next_music_source := music_next
         end
       end
     end
