@@ -274,20 +274,21 @@ def init_playout_chain()
   test_eq_availability()
   load_eq_preset()
 
-  music = request.dynamic(id="music", prefetch=1, {add_track("music")})
-  music_4m = request.dynamic(id="4minutesmusic", prefetch=1, {add_track("4minutesmusic")})
+  # Music sources with automatic crossfading
+  # Create raw dynamic sources that fetch tracks from the API
+  music_raw = request.dynamic(id="music", prefetch=1, {add_track("music")})
+  music_4m_raw = request.dynamic(id="4minutesmusic", prefetch=1, {add_track("4minutesmusic")})
+
+  # Apply crossfade to music sources using Liquidsoap's built-in crossfade() function
+  # This creates a 3-second crossfade between consecutive tracks:
+  # - Last 3 seconds of track A fade out
+  # - First 3 seconds of track B fade in
+  # - Both play simultaneously during the overlap
+  music = crossfade(duration=3.0, music_raw)
+  music_4m = crossfade(duration=3.0, music_4m_raw)
   
   # Variable to track if we just came from ads
   just_finished_ads = ref(false)
-  
-  # Variables for crossfade management
-  crossfade_active = ref(false)
-  crossfade_start_time = ref(-1.0)
-  next_music_source = ref(blank())
-  
-  # Create duplicate music sources for crossfading
-  music_next = request.dynamic(id="music_next", prefetch=1, {add_track("music")})
-  music_4m_next = request.dynamic(id="4minutesmusic_next", prefetch=1, {add_track("4minutesmusic")})
   
   # Increase prefetch for ads to give processing chain more initialization time
   ads = request.dynamic(id="ads", prefetch=1, {add_track("ad")})
@@ -349,16 +350,11 @@ def init_playout_chain()
   end
   ads.on_track(skip_music_on_ad_or_ad)
   
-  # Track when music starts playing and reset crossfade flag
+  # Track when music starts playing
   def on_music_track(_)
     current_source_type := "music"
-    # Reset crossfade flag after ads
-    if just_finished_ads() then
-      just_finished_ads := false
-      log("INFO: Crossfade re-enabled for future transitions")
-    end
-    
-    log("INFO: Music track started, monitoring for crossfade opportunity")
+    just_finished_ads := false
+    log("INFO: Music track started")
   end
   music.on_track(on_music_track)
   music_4m.on_track(on_music_track)
@@ -518,19 +514,6 @@ def init_playout_chain()
   play_ads_now = ref(false)
   fade_start_time = ref(-1.0)
   
-  # Create static quieter versions of music by mixing with silence
-  # No amplify, just mixing at different ratios - more steps for smoother fade
-  music_90 = add(weights=[0.9, 0.1], [processed_music, blank()])
-  music_80 = add(weights=[0.8, 0.2], [processed_music, blank()])
-  music_70 = add(weights=[0.7, 0.3], [processed_music, blank()])
-  music_60 = add(weights=[0.6, 0.4], [processed_music, blank()])
-  music_50 = add(weights=[0.5, 0.5], [processed_music, blank()])
-  music_40 = add(weights=[0.4, 0.6], [processed_music, blank()])
-  music_30 = add(weights=[0.3, 0.7], [processed_music, blank()])
-  music_20 = add(weights=[0.2, 0.8], [processed_music, blank()])
-  music_10 = add(weights=[0.1, 0.9], [processed_music, blank()])
-  music_0 = blank()
-  
   # Thread to monitor ad timing and control transitions
   thread.run(every=0.1, fun() -> begin
     secs_to_ads = seconds_until_ads()
@@ -562,134 +545,26 @@ def init_playout_chain()
         play_ads_now := false
         fade_start_time := -1.0
         just_finished_ads := true
-        log("INFO: Ads finished, back to music - crossfade disabled for next track")
+        log("INFO: Ads finished, back to music")
       end
     end
   end)
   
-  # Create static mixed versions of next music source for crossfading
-  # These will be used when crossfading IN a new track
-  next_music_for_crossfade = switch(track_sensitive=false, [
-    ({current_loop() == "J" or current_loop() == "K" or current_loop() == "H" or current_loop() == "I"}, music_4m_next),
-    ({true}, music_next)
-  ])
-  
-  next_music_10 = add(weights=[0.1, 0.9], [next_music_for_crossfade, blank()])
-  next_music_20 = add(weights=[0.2, 0.8], [next_music_for_crossfade, blank()])
-  next_music_30 = add(weights=[0.3, 0.7], [next_music_for_crossfade, blank()])
-  next_music_40 = add(weights=[0.4, 0.6], [next_music_for_crossfade, blank()])
-  next_music_50 = add(weights=[0.5, 0.5], [next_music_for_crossfade, blank()])
-  next_music_60 = add(weights=[0.6, 0.4], [next_music_for_crossfade, blank()])
-  next_music_70 = add(weights=[0.7, 0.3], [next_music_for_crossfade, blank()])
-  next_music_80 = add(weights=[0.8, 0.2], [next_music_for_crossfade, blank()])
-  next_music_90 = add(weights=[0.9, 0.1], [next_music_for_crossfade, blank()])
-  
-  # Variables to track track timing
-  track_start_time = ref(-1.0)
-  track_duration = ref(0.0)
-  
-  # Update track timing on new tracks
-  def update_track_timing(_)
-    track_start_time := time.up()
+  # Crossfade is now handled by the cross() function applied to music sources
+  # Create static quieter versions of current music for fading out before ads
+  music_90 = add(weights=[0.9, 0.1], [processed_music, blank()])
+  music_80 = add(weights=[0.8, 0.2], [processed_music, blank()])
+  music_70 = add(weights=[0.7, 0.3], [processed_music, blank()])
+  music_60 = add(weights=[0.6, 0.4], [processed_music, blank()])
+  music_50 = add(weights=[0.5, 0.5], [processed_music, blank()])
+  music_40 = add(weights=[0.4, 0.6], [processed_music, blank()])
+  music_30 = add(weights=[0.3, 0.7], [processed_music, blank()])
+  music_20 = add(weights=[0.2, 0.8], [processed_music, blank()])
+  music_10 = add(weights=[0.1, 0.9], [processed_music, blank()])
+  music_0 = blank()
 
-    # Get duration from global variable (set in add_track function)
-    dur = next_track_duration()
-    if dur > 0.0 then
-      track_duration := dur
-      log("INFO: Track duration set to: #{dur}s")
-      # Reset for next track
-      next_track_duration := 0.0
-    else
-      log("WARNING: No duration available for this track")
-      track_duration := 0.0
-    end
-  end
-  
-  # Add timing update to on_track handlers
-  music.on_track(update_track_timing)
-  music_4m.on_track(update_track_timing)
-  
-  # Thread to monitor for crossfade opportunity
-  thread.run(every=0.2, fun() -> begin
-    # Check if we should start crossfade
-    duration_val = null.get(default=0.0, track_duration())
-    if not crossfade_active() and not just_finished_ads() and current_source_type() == "music" and track_start_time() > 0.0 and duration_val > 0.0 then
-      # Calculate elapsed time
-      elapsed = time.up() - track_start_time()
-      remaining = duration_val - elapsed
-
-      # Log timing every 10 seconds when near the end
-      if remaining <= 10.0 and remaining > 0.0 and int_of_float(elapsed) mod 10 == 0 then
-        log("DEBUG: Track elapsed: #{elapsed}s, remaining: #{remaining}s")
-      end
-
-      # Start crossfade when track has 5 seconds remaining (giving 3 seconds for crossfade + 2 seconds buffer)
-      if remaining > 0.0 and remaining <= 5.0 then
-        # Only start crossfade if ads aren't coming soon
-        secs_to_ads = seconds_until_ads()
-        if secs_to_ads < 0 or secs_to_ads > 10 then
-          log("CRITICAL: Starting crossfade - track remaining: #{remaining}s")
-          crossfade_active := true
-          crossfade_start_time := time.up()
-
-          # Prepare next track based on loop
-          if current_loop() == "J" or current_loop() == "K" or current_loop() == "H" or current_loop() == "I" then
-            next_music_source := music_4m_next
-          else
-            next_music_source := music_next
-          end
-        else
-          log("INFO: Track ending but ads coming in #{secs_to_ads}s, skipping crossfade")
-        end
-      end
-    end
-
-    # Monitor active crossfade
-    if crossfade_active() then
-      elapsed = time.up() - crossfade_start_time()
-
-      # Log crossfade progress
-      if int_of_float(elapsed * 10.0) mod 5 == 0 then
-        log("DEBUG: Crossfade progress: #{elapsed}s / 3.0s")
-      end
-
-      if elapsed >= 3.0 then
-        # Crossfade complete, reset and let track end naturally
-        crossfade_active := false
-        crossfade_start_time := -1.0
-        log("INFO: Crossfade complete")
-        # Don't skip - let the track end naturally and trigger on_track for the next one
-      end
-    end
-  end)
-  
-  # Create crossfade mixes - combining fading out current with fading in next
-  # During crossfade, current music fades out while next music fades in
-  crossfade_mix_0 = add(normalize=false, [music_90, next_music_10])
-  crossfade_mix_1 = add(normalize=false, [music_80, next_music_20])
-  crossfade_mix_2 = add(normalize=false, [music_70, next_music_30])
-  crossfade_mix_3 = add(normalize=false, [music_60, next_music_40])
-  crossfade_mix_4 = add(normalize=false, [music_50, next_music_50])
-  crossfade_mix_5 = add(normalize=false, [music_40, next_music_60])
-  crossfade_mix_6 = add(normalize=false, [music_30, next_music_70])
-  crossfade_mix_7 = add(normalize=false, [music_20, next_music_80])
-  crossfade_mix_8 = add(normalize=false, [music_10, next_music_90])
-  crossfade_mix_9 = next_music_for_crossfade
-  
-  # Create the smart music source with crossfade and fade-out support
+  # Create the smart music source with fade-out support before ads
   smart_music = switch(track_sensitive=false, [
-    # Crossfade states (when crossfading between music tracks) - 3 second crossfade
-    ({crossfade_active() and time.up() - crossfade_start_time() >= 2.7}, crossfade_mix_9),
-    ({crossfade_active() and time.up() - crossfade_start_time() >= 2.4}, crossfade_mix_8),
-    ({crossfade_active() and time.up() - crossfade_start_time() >= 2.1}, crossfade_mix_7),
-    ({crossfade_active() and time.up() - crossfade_start_time() >= 1.8}, crossfade_mix_6),
-    ({crossfade_active() and time.up() - crossfade_start_time() >= 1.5}, crossfade_mix_5),
-    ({crossfade_active() and time.up() - crossfade_start_time() >= 1.2}, crossfade_mix_4),
-    ({crossfade_active() and time.up() - crossfade_start_time() >= 0.9}, crossfade_mix_3),
-    ({crossfade_active() and time.up() - crossfade_start_time() >= 0.6}, crossfade_mix_2),
-    ({crossfade_active() and time.up() - crossfade_start_time() >= 0.3}, crossfade_mix_1),
-    ({crossfade_active()}, crossfade_mix_0),
-    
     # Fade-out states (when fading to ads)
     ({fade_start_time() >= 0.0 and time.up() - fade_start_time() >= 1.8}, music_0),
     ({fade_start_time() >= 0.0 and time.up() - fade_start_time() >= 1.6}, music_10),
@@ -701,8 +576,8 @@ def init_playout_chain()
     ({fade_start_time() >= 0.0 and time.up() - fade_start_time() >= 0.4}, music_70),
     ({fade_start_time() >= 0.0 and time.up() - fade_start_time() >= 0.2}, music_80),
     ({fade_start_time() >= 0.0}, music_90),
-    
-    # Normal state
+
+    # Normal state (with automatic crossfading between tracks handled by cross() function)
     ({true}, processed_music)
   ])
   
