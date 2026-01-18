@@ -300,7 +300,7 @@ def init_playout_chain()
   #ads = amplify(2.0, ads)  # 2.3dB boost
   # Add limiter to prevent any clipping
   #ads = limit(threshold=-6.0, attack=0.001, release=0.05, ads)
-  ads = amplify(4.0, ads)  # 2.3dB boost
+  ads = amplify(2.0, ads)  # 2.3dB boost
   log("INFO: Moderate compression (mu=5), 2.3dB boost, and soft limiting at -2dB applied to ads")
 
   # Function to check if we're approaching ad time
@@ -339,12 +339,15 @@ def init_playout_chain()
     # Mark that we're playing ads
     current_source_type := "ads"
     # We wait for the transition to finish before skipping
+    # Skip multiple times to clear crossfade buffer
     thread.run(delay=0.5, fun() -> begin
       log("INFO: Flushing music background for fresh restart")
       if current_loop() == "J" or current_loop() == "K" or current_loop() == "H" or current_loop() == "I" then
         music_4m.skip()
+        thread.run(delay=0.1, fun() -> music_4m.skip())
       else
         music.skip()
+        thread.run(delay=0.1, fun() -> music.skip())
       end
     end)
   end
@@ -546,6 +549,14 @@ def init_playout_chain()
         fade_start_time := -1.0
         just_finished_ads := true
         log("INFO: Ads finished, back to music")
+
+        # Skip music sources again to ensure fresh track starts
+        # This clears any crossfade buffer
+        if current_loop() == "J" or current_loop() == "K" or current_loop() == "H" or current_loop() == "I" then
+          music_4m.skip()
+        else
+          music.skip()
+        end
       end
     end
   end)
