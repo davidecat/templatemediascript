@@ -623,11 +623,11 @@ def init_playout_chain()
         log("DEBUG: Track elapsed: #{elapsed}s, remaining: #{remaining}s")
       end
 
-      # Start crossfade when track has 3 seconds remaining
-      if remaining > 0.0 and remaining <= 3.0 then
+      # Start crossfade when track has 5 seconds remaining (giving 3 seconds for crossfade + 2 seconds buffer)
+      if remaining > 0.0 and remaining <= 5.0 then
         # Only start crossfade if ads aren't coming soon
         secs_to_ads = seconds_until_ads()
-        if secs_to_ads < 0 or secs_to_ads > 5 then
+        if secs_to_ads < 0 or secs_to_ads > 10 then
           log("CRITICAL: Starting crossfade - track remaining: #{remaining}s")
           crossfade_active := true
           crossfade_start_time := time.up()
@@ -643,29 +643,22 @@ def init_playout_chain()
         end
       end
     end
-    
+
     # Monitor active crossfade
     if crossfade_active() then
       elapsed = time.up() - crossfade_start_time()
-      
+
       # Log crossfade progress
       if int_of_float(elapsed * 10.0) mod 5 == 0 then
-        log("DEBUG: Crossfade progress: #{elapsed}s / 2.0s")
+        log("DEBUG: Crossfade progress: #{elapsed}s / 3.0s")
       end
-      
-      if elapsed >= 2.0 then
-        # Crossfade complete, reset
+
+      if elapsed >= 3.0 then
+        # Crossfade complete, reset and let track end naturally
         crossfade_active := false
         crossfade_start_time := -1.0
-        track_start_time := -1.0  # Reset track timing
-        log("INFO: Crossfade complete, switching to next track")
-        
-        # Skip the old source to clean up
-        if current_loop() == "J" or current_loop() == "K" or current_loop() == "H" or current_loop() == "I" then
-          music_4m.skip()
-        else
-          music.skip()
-        end
+        log("INFO: Crossfade complete")
+        # Don't skip - let the track end naturally and trigger on_track for the next one
       end
     end
   end)
@@ -685,16 +678,16 @@ def init_playout_chain()
   
   # Create the smart music source with crossfade and fade-out support
   smart_music = switch(track_sensitive=false, [
-    # Crossfade states (when crossfading between music tracks)
-    ({crossfade_active() and time.up() - crossfade_start_time() >= 1.8}, crossfade_mix_9),
-    ({crossfade_active() and time.up() - crossfade_start_time() >= 1.6}, crossfade_mix_8),
-    ({crossfade_active() and time.up() - crossfade_start_time() >= 1.4}, crossfade_mix_7),
-    ({crossfade_active() and time.up() - crossfade_start_time() >= 1.2}, crossfade_mix_6),
-    ({crossfade_active() and time.up() - crossfade_start_time() >= 1.0}, crossfade_mix_5),
-    ({crossfade_active() and time.up() - crossfade_start_time() >= 0.8}, crossfade_mix_4),
-    ({crossfade_active() and time.up() - crossfade_start_time() >= 0.6}, crossfade_mix_3),
-    ({crossfade_active() and time.up() - crossfade_start_time() >= 0.4}, crossfade_mix_2),
-    ({crossfade_active() and time.up() - crossfade_start_time() >= 0.2}, crossfade_mix_1),
+    # Crossfade states (when crossfading between music tracks) - 3 second crossfade
+    ({crossfade_active() and time.up() - crossfade_start_time() >= 2.7}, crossfade_mix_9),
+    ({crossfade_active() and time.up() - crossfade_start_time() >= 2.4}, crossfade_mix_8),
+    ({crossfade_active() and time.up() - crossfade_start_time() >= 2.1}, crossfade_mix_7),
+    ({crossfade_active() and time.up() - crossfade_start_time() >= 1.8}, crossfade_mix_6),
+    ({crossfade_active() and time.up() - crossfade_start_time() >= 1.5}, crossfade_mix_5),
+    ({crossfade_active() and time.up() - crossfade_start_time() >= 1.2}, crossfade_mix_4),
+    ({crossfade_active() and time.up() - crossfade_start_time() >= 0.9}, crossfade_mix_3),
+    ({crossfade_active() and time.up() - crossfade_start_time() >= 0.6}, crossfade_mix_2),
+    ({crossfade_active() and time.up() - crossfade_start_time() >= 0.3}, crossfade_mix_1),
     ({crossfade_active()}, crossfade_mix_0),
     
     # Fade-out states (when fading to ads)
