@@ -28,6 +28,7 @@ last_skip_loop = ref("")
 prayer_times = ref([])
 prayer_enabled = ref(true)
 current_source_type = ref("music")
+next_track_duration = ref(0.0)
 
 # EQ Configuration Variables
 eq_preset = ref("flat")
@@ -222,6 +223,10 @@ def add_track(stream)
     duration = request.duration(j.data.asset_path)
     if duration > 0.0 then
       log("INFO: Got duration from file: #{duration}s for #{j.data.asset_path}")
+      # Store duration for music tracks only
+      if stream == "music" or stream == "4minutesmusic" then
+        next_track_duration := duration
+      end
     else
       log("WARNING: Could not get duration for #{j.data.asset_path}")
     end
@@ -584,27 +589,18 @@ def init_playout_chain()
   track_duration = ref(0.0)
   
   # Update track timing on new tracks
-  def update_track_timing(metadata)
+  def update_track_timing(_)
     track_start_time := time.up()
 
-    # Debug: Log all available metadata keys
-    log("DEBUG: Available metadata keys:")
-    list.iter(fun(item) -> log("DEBUG: - #{fst(item)} = #{snd(item)}"), metadata)
-
-    # Get duration from metadata (set in add_track function)
-    duration_str = list.assoc(default="", "duration", metadata)
-
-    if duration_str != "" then
-      try
-        duration = float_of_string(duration_str)
-        track_duration := duration
-        log("INFO: Track duration from metadata: #{duration}s")
-      catch err do
-        log("WARNING: Failed to parse duration from metadata: #{err}")
-        track_duration := 0.0
-      end
+    # Get duration from global variable (set in add_track function)
+    dur = next_track_duration()
+    if dur > 0.0 then
+      track_duration := dur
+      log("INFO: Track duration set to: #{dur}s")
+      # Reset for next track
+      next_track_duration := 0.0
     else
-      log("WARNING: No duration in metadata")
+      log("WARNING: No duration available for this track")
       track_duration := 0.0
     end
   end
@@ -616,16 +612,17 @@ def init_playout_chain()
   # Thread to monitor for crossfade opportunity
   thread.run(every=0.2, fun() -> begin
     # Check if we should start crossfade
-    if not crossfade_active() and not just_finished_ads() and current_source_type() == "music" and track_start_time() > 0.0 then
+    duration_val = null.get(default=0.0, track_duration())
+    if not crossfade_active() and not just_finished_ads() and current_source_type() == "music" and track_start_time() > 0.0 and duration_val > 0.0 then
       # Calculate elapsed time
       elapsed = time.up() - track_start_time()
-      remaining = track_duration() - elapsed
-      
+      remaining = duration_val - elapsed
+
       # Log timing every 10 seconds when near the end
       if remaining <= 10.0 and remaining > 0.0 and int_of_float(elapsed) mod 10 == 0 then
         log("DEBUG: Track elapsed: #{elapsed}s, remaining: #{remaining}s")
       end
-      
+
       # Start crossfade when track has 3 seconds remaining
       if remaining > 0.0 and remaining <= 3.0 then
         # Only start crossfade if ads aren't coming soon
@@ -634,7 +631,7 @@ def init_playout_chain()
           log("CRITICAL: Starting crossfade - track remaining: #{remaining}s")
           crossfade_active := true
           crossfade_start_time := time.up()
-          
+
           # Prepare next track based on loop
           if current_loop() == "J" or current_loop() == "K" or current_loop() == "H" or current_loop() == "I" then
             next_music_source := music_4m_next
