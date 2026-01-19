@@ -365,6 +365,8 @@ def init_playout_chain()
   end
   music.on_track(on_music_track)
   music_4m.on_track(on_music_track)
+  music_post_ads.on_track(on_music_track)
+  music_4m_post_ads.on_track(on_music_track)
 
   # Determine current music source based on loop type
   # Use separate raw sources (without crossfade) immediately after ads to avoid old track remnants
@@ -557,12 +559,14 @@ def init_playout_chain()
         just_finished_ads := true
         log("INFO: Ads finished, back to music")
 
-        # Skip music sources again to ensure fresh track starts
-        # This clears any crossfade buffer
+        # Skip ALL music sources to ensure fresh track starts
+        # This clears any crossfade buffer and forces post-ads sources to fetch new tracks
         if current_loop() == "J" or current_loop() == "K" or current_loop() == "H" or current_loop() == "I" then
           music_4m.skip()
+          music_4m_post_ads.skip()
         else
           music.skip()
+          music_post_ads.skip()
         end
       end
     end
