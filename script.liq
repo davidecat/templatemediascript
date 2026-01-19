@@ -279,22 +279,16 @@ def init_playout_chain()
   music_raw = request.dynamic(id="music", prefetch=1, {add_track("music")})
   music_4m_raw = request.dynamic(id="4minutesmusic", prefetch=1, {add_track("4minutesmusic")})
 
-  # Create additional raw sources for post-ads playback (to avoid clock conflicts)
-  # Use prefetch=0 so they only fetch fresh tracks when needed (after ads)
-  music_post_ads = request.dynamic(id="music_post_ads", prefetch=0, {add_track("music")})
-  music_4m_post_ads = request.dynamic(id="4minutesmusic_post_ads", prefetch=0, {add_track("4minutesmusic")})
+  # Variable to track if we just came from ads
+  just_finished_ads = ref(false)
 
   # Apply crossfade to music sources
   # This creates a 3-second crossfade where:
   # - Old track fades out over 3 seconds
   # - New track starts at full volume (no fade-in)
-  # Using fade_out only on the outgoing track
   music = crossfade(fade_in=0.0, fade_out=3.0, duration=3.0, music_raw)
   music_4m = crossfade(fade_in=0.0, fade_out=3.0, duration=3.0, music_4m_raw)
-  
-  # Variable to track if we just came from ads
-  just_finished_ads = ref(false)
-  
+
   # Increase prefetch for ads to give processing chain more initialization time
   ads = request.dynamic(id="ads", prefetch=1, {add_track("ad")})
   
@@ -344,81 +338,42 @@ def init_playout_chain()
     # Mark that we're playing ads
     current_source_type := "ads"
     # We wait for the transition to finish before skipping
-    # Skip multiple times to clear crossfade buffer and also clear post-ads sources
+    # Skip multiple times to clear crossfade buffer
     thread.run(delay=0.5, fun() -> begin
       log("INFO: Flushing music background for fresh restart")
       if current_loop() == "J" or current_loop() == "K" or current_loop() == "H" or current_loop() == "I" then
         music_4m.skip()
-        music_4m_post_ads.skip()
         thread.run(delay=0.1, fun() -> music_4m.skip())
       else
         music.skip()
-        music_post_ads.skip()
         thread.run(delay=0.1, fun() -> music.skip())
       end
     end)
   end
   ads.on_track(skip_music_on_ad_or_ad)
   
-  # Track when crossfaded music starts playing
-  def on_crossfade_music_track(_)
+  # Track when music starts playing
+  # If just_finished_ads flag is set, skip immediately to get a fresh track without crossfade remnants
+  def on_music_track_handler(src, _)
     current_source_type := "music"
-    # Don't reset just_finished_ads here - let post-ads source reset it
-    log("INFO: Crossfaded music track started")
-  end
 
-  # Track when post-ads music starts playing
-  def on_post_ads_music_track(metadata)
-    current_source_type := "music"
-    log("INFO: Post-ads music track started")
-
-    # Get track duration - try from next_track_duration first, then metadata, then default
-    track_dur = null.get(default=0.0, next_track_duration())
-    track_dur = if track_dur <= 0.0 then
-      float_of_string(default=180.0, metadata["duration"])
+    if just_finished_ads() then
+      log("INFO: Post-ads music started - skipping to avoid crossfade remnant")
+      just_finished_ads := false
+      # Skip immediately to get the next track fresh
+      src.skip()
     else
-      track_dur
-    end
-
-    # Reset flag after the track finishes playing (subtract 1s buffer)
-    reset_delay = track_dur - 1.0
-    if reset_delay > 0.0 then
-      thread.run(delay=reset_delay, fun() -> begin
-        just_finished_ads := false
-        log("INFO: Post-ads track nearly complete, will resume crossfade on next track")
-      end)
-    else
-      # Fallback: reset after 30 seconds if duration unknown
-      thread.run(delay=30.0, fun() -> begin
-        just_finished_ads := false
-        log("INFO: Post-ads transition complete (fallback timer), resuming normal crossfade")
-      end)
+      log("INFO: Normal music track started")
     end
   end
 
-  music.on_track(on_crossfade_music_track)
-  music_4m.on_track(on_crossfade_music_track)
-  music_post_ads.on_track(on_post_ads_music_track)
-  music_4m_post_ads.on_track(on_post_ads_music_track)
+  music.on_track(fun(m) -> on_music_track_handler(music, m))
+  music_4m.on_track(fun(m) -> on_music_track_handler(music_4m, m))
 
   # Determine current music source based on loop type
-  # Gate post-ads sources - only available when just_finished_ads is true
-  # This forces fallback to re-route immediately when the flag changes
-  music_post_ads_gated = source.available(music_post_ads, {just_finished_ads()})
-  music_4m_post_ads_gated = source.available(music_4m_post_ads, {just_finished_ads()})
-
-  # Use fallback to prefer post-ads sources when available, else use crossfaded
-  current_music_source = fallback(track_sensitive=false, [
-    # Try post-ads sources first (available only when flag=true)
-    (switch(track_sensitive=false, [
-      ({current_loop() == "J" or current_loop() == "K" or current_loop() == "H" or current_loop() == "I"}, music_4m_post_ads_gated),
-      ({true}, music_post_ads_gated)
-    ])),
-    # Fallback to crossfaded sources when post-ads not available
-    (switch(track_sensitive=false, [
-      ({current_loop() == "J" or current_loop() == "K" or current_loop() == "H" or current_loop() == "I"}, music_4m),
-      ({true}, music)
-    ]))
+  current_music_source = switch(track_sensitive=false, [
+    ({current_loop() == "J" or current_loop() == "K" or current_loop() == "H" or current_loop() == "I"}, music_4m),
+    ({true}, music)
   ])
 
   # Ad Scheduler using specific predicates for all loops including J and K
