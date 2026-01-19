@@ -307,28 +307,46 @@ def init_playout_chain()
     current_source_type := "music"
     log("INFO: Post-ads music track started (no crossfade)")
 
-    # Get track duration from metadata
-    duration = float_of_string(default=180.0, m["duration"])
+    # Use the globally stored duration from add_track()
+    # Get duration with fallback to 180.0 if not available
+    dur = next_track_duration() ?? 180.0
+    log("INFO: Post-ads track duration: #{dur}s, will reset flag when track finishes")
 
-    # Reset flag after track finishes (duration minus a small buffer for the next track to start)
-    thread.run(delay=duration - 1.0, fun() -> begin
-      log("INFO: Post-ads track finishing soon, re-enabling crossfade")
+    # Schedule flag reset just before track ends
+    if dur > 5.0 then
+      reset_delay = dur - 3.0  # Reset 3 seconds before track ends to allow smooth transition
+      thread.run(delay=reset_delay, fun() -> begin
+        log("INFO: Post-ads track finishing soon, re-enabling crossfade")
+        just_finished_ads := false
+      end)
+    else
+      # For very short tracks, reset immediately
+      log("WARNING: Post-ads track too short (#{dur}s), resetting flag immediately")
       just_finished_ads := false
-    end)
+    end
   end
 
   def on_music_4m_no_cf_track(m)
     current_source_type := "music"
     log("INFO: Post-ads 4m music track started (no crossfade)")
 
-    # Get track duration from metadata
-    duration = float_of_string(default=180.0, m["duration"])
+    # Use the globally stored duration from add_track()
+    # Get duration with fallback to 180.0 if not available
+    dur = next_track_duration() ?? 180.0
+    log("INFO: Post-ads 4m track duration: #{dur}s, will reset flag when track finishes")
 
-    # Reset flag after track finishes
-    thread.run(delay=duration - 1.0, fun() -> begin
-      log("INFO: Post-ads 4m track finishing soon, re-enabling crossfade")
+    # Schedule flag reset just before track ends
+    if dur > 5.0 then
+      reset_delay = dur - 3.0  # Reset 3 seconds before track ends to allow smooth transition
+      thread.run(delay=reset_delay, fun() -> begin
+        log("INFO: Post-ads 4m track finishing soon, re-enabling crossfade")
+        just_finished_ads := false
+      end)
+    else
+      # For very short tracks, reset immediately
+      log("WARNING: Post-ads 4m track too short (#{dur}s), resetting flag immediately")
       just_finished_ads := false
-    end)
+    end
   end
 
   music_raw_no_cf.on_track(on_music_no_cf_track)
