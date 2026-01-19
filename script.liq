@@ -360,20 +360,33 @@ def init_playout_chain()
   end
   ads.on_track(skip_music_on_ad_or_ad)
   
-  # Track when music starts playing
-  def on_music_track(_)
+  # Track when crossfaded music starts playing
+  def on_crossfade_music_track(_)
     current_source_type := "music"
-    just_finished_ads := false
-    log("INFO: Music track started")
+    # Don't reset just_finished_ads here - let post-ads source reset it
+    log("INFO: Crossfaded music track started")
   end
-  music.on_track(on_music_track)
-  music_4m.on_track(on_music_track)
-  music_post_ads.on_track(on_music_track)
-  music_4m_post_ads.on_track(on_music_track)
+
+  # Track when post-ads music starts playing
+  def on_post_ads_music_track(_)
+    current_source_type := "music"
+    log("INFO: Post-ads music track started")
+    # Reset flag after a delay to ensure this track plays completely
+    thread.run(delay=1.0, fun() -> begin
+      just_finished_ads := false
+      log("INFO: Post-ads transition complete, resuming normal crossfade")
+    end)
+  end
+
+  music.on_track(on_crossfade_music_track)
+  music_4m.on_track(on_crossfade_music_track)
+  music_post_ads.on_track(on_post_ads_music_track)
+  music_4m_post_ads.on_track(on_post_ads_music_track)
 
   # Determine current music source based on loop type
   # Use separate raw sources (without crossfade) immediately after ads to avoid old track remnants
-  current_music_source = switch(track_sensitive=false, [
+  # track_sensitive=true ensures switch waits for track boundaries before changing sources
+  current_music_source = switch(track_sensitive=true, [
     ({just_finished_ads() and (current_loop() == "J" or current_loop() == "K" or current_loop() == "H" or current_loop() == "I")}, music_4m_post_ads),
     ({just_finished_ads()}, music_post_ads),
     ({current_loop() == "J" or current_loop() == "K" or current_loop() == "H" or current_loop() == "I"}, music_4m),
@@ -562,13 +575,9 @@ def init_playout_chain()
         just_finished_ads := true
         log("INFO: Ads finished, back to music")
 
-        # Skip crossfaded music sources to clear their buffers
-        # Post-ads sources were already skipped when ads started, so they're clean
-        if current_loop() == "J" or current_loop() == "K" or current_loop() == "H" or current_loop() == "I" then
-          music_4m.skip()
-        else
-          music.skip()
-        end
+        # Don't skip music sources here - they were already skipped when ads started
+        # Skipping here can interfere with the switch routing to post-ads sources
+        # The post-ads sources (with prefetch=0) will fetch fresh tracks when selected
       end
     end
   end)
