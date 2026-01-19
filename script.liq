@@ -276,35 +276,27 @@ def init_playout_chain()
 
   # Music sources with automatic crossfading
   # Create raw dynamic sources that fetch tracks from the API
-  # CRITICAL: Use prefetch=0 to prevent buffering tracks during ads
-  # This allows us to get fresh tracks without crossfade after ads finish
-  music_raw = request.dynamic(id="music", prefetch=0, {add_track("music")})
-  music_4m_raw = request.dynamic(id="4minutesmusic", prefetch=0, {add_track("4minutesmusic")})
+  music_raw = request.dynamic(id="music", prefetch=1, {add_track("music")})
+  music_4m_raw = request.dynamic(id="4minutesmusic", prefetch=1, {add_track("4minutesmusic")})
 
   # Variable to track if we just came from ads
   just_finished_ads = ref(false)
 
-  # Track when music starts playing - attach to RAW sources before crossfade
+  # Track when music starts playing
   def on_music_track_handler(_)
     current_source_type := "music"
-
-    if just_finished_ads() then
-      log("INFO: Post-ads music track started (fresh, no crossfade)")
-      just_finished_ads := false
-    else
-      log("INFO: Normal music track started")
-    end
+    log("INFO: Music track started")
   end
 
   music_raw.on_track(on_music_track_handler)
   music_4m_raw.on_track(on_music_track_handler)
 
   # Apply crossfade to music sources
-  # This creates a 3-second crossfade where:
-  # - Old track fades out over 3 seconds
-  # - New track starts at full volume (no fade-in)
-  music = crossfade(fade_in=0.0, fade_out=3.0, duration=3.0, music_raw)
-  music_4m = crossfade(fade_in=0.0, fade_out=3.0, duration=3.0, music_4m_raw)
+  # Use a shorter crossfade duration (1 second) to minimize post-ads crossfade
+  # While we can't completely eliminate the crossfade after ads due to Liquidsoap's buffering,
+  # a 1-second crossfade is much less noticeable than 3 seconds
+  music = crossfade(fade_in=0.0, fade_out=1.0, duration=1.0, music_raw)
+  music_4m = crossfade(fade_in=0.0, fade_out=1.0, duration=1.0, music_4m_raw)
 
   # Increase prefetch for ads to give processing chain more initialization time
   ads = request.dynamic(id="ads", prefetch=1, {add_track("ad")})
@@ -553,7 +545,6 @@ def init_playout_chain()
       # Reset when ads finish
       if play_ads_now() then
         # CRITICAL: Set post-ads flag BEFORE resetting play_ads_now
-        # This ensures the flag is already true when the switch evaluates
         just_finished_ads := true
         log("INFO: Post-ads source activated")
 
@@ -561,20 +552,8 @@ def init_playout_chain()
         fade_start_time := -1.0
         log("INFO: Ads finished, back to music")
 
-        # Aggressively skip music sources to clear any buffered crossfaded tracks
-        # Skip the RAW sources multiple times to ensure fresh tracks
-        thread.run(delay=0.1, fun() -> begin
-          log("INFO: Clearing buffered crossfaded tracks after ads")
-          if current_loop() == "J" or current_loop() == "K" or current_loop() == "H" or current_loop() == "I" then
-            music_4m_raw.skip()
-            thread.run(delay=0.05, fun() -> music_4m_raw.skip())
-            thread.run(delay=0.1, fun() -> music_4m_raw.skip())
-          else
-            music_raw.skip()
-            thread.run(delay=0.05, fun() -> music_raw.skip())
-            thread.run(delay=0.1, fun() -> music_raw.skip())
-          end
-        end)
+        # With prefetch=0, sources will fetch fresh tracks on demand
+        # No need to skip - there's nothing buffered
       end
     end
   end)
