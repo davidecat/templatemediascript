@@ -380,17 +380,17 @@ def init_playout_chain()
   def skip_music_on_ad_or_ad(_)
     # Mark that we're playing ads
     current_source_type := "ads"
-    # We wait for the transition to finish before skipping
-    # Skip the inner switches to clear both crossfaded and non-crossfaded sources
+    # CRITICAL: Skip the crossfaded sources to prevent them from buffering
+    # This ensures when we come back from ads, they won't have pre-buffered tracks
     thread.run(delay=0.5, fun() -> begin
-      log("INFO: Flushing music background for fresh restart")
-      if current_loop() == "J" or current_loop() == "K" or current_loop() == "H" or current_loop() == "I" then
-        music_4m_inner.skip()
-        thread.run(delay=0.1, fun() -> music_4m_inner.skip())
-      else
-        music_inner.skip()
-        thread.run(delay=0.1, fun() -> music_inner.skip())
-      end
+      log("INFO: Flushing crossfaded sources to prevent buffering during ads")
+      # Skip both crossfaded sources multiple times to clear their buffers
+      music_crossfaded.skip()
+      music_4m_crossfaded.skip()
+      thread.run(delay=0.1, fun() -> begin
+        music_crossfaded.skip()
+        music_4m_crossfaded.skip()
+      end)
     end)
   end
   ads.on_track(skip_music_on_ad_or_ad)
