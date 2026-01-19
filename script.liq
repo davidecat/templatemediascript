@@ -302,19 +302,33 @@ def init_playout_chain()
   music_raw.on_track(on_music_crossfaded_track)
   music_4m_raw.on_track(on_music_crossfaded_track)
 
-  # Track handlers for non-crossfaded sources that reset the flag
-  def on_music_no_cf_track(_)
+  # Track handlers for non-crossfaded sources
+  def on_music_no_cf_track(m)
     current_source_type := "music"
     log("INFO: Post-ads music track started (no crossfade)")
-    # Reset flag after first post-ads track plays
-    just_finished_ads := false
+
+    # Get track duration from metadata
+    duration = float_of_string(default=180.0, m["duration"])
+
+    # Reset flag after track finishes (duration minus a small buffer for the next track to start)
+    thread.run(delay=duration - 1.0, fun() -> begin
+      log("INFO: Post-ads track finishing soon, re-enabling crossfade")
+      just_finished_ads := false
+    end)
   end
 
-  def on_music_4m_no_cf_track(_)
+  def on_music_4m_no_cf_track(m)
     current_source_type := "music"
     log("INFO: Post-ads 4m music track started (no crossfade)")
-    # Reset flag after first post-ads track plays
-    just_finished_ads := false
+
+    # Get track duration from metadata
+    duration = float_of_string(default=180.0, m["duration"])
+
+    # Reset flag after track finishes
+    thread.run(delay=duration - 1.0, fun() -> begin
+      log("INFO: Post-ads 4m track finishing soon, re-enabling crossfade")
+      just_finished_ads := false
+    end)
   end
 
   music_raw_no_cf.on_track(on_music_no_cf_track)
