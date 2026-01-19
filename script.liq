@@ -283,22 +283,19 @@ def init_playout_chain()
   just_finished_ads = ref(false)
 
   # Track when music starts playing - attach to RAW sources before crossfade
-  # If just_finished_ads flag is set, skip immediately to get a fresh track without crossfade remnants
-  def on_music_track_handler(src, _)
+  def on_music_track_handler(_)
     current_source_type := "music"
 
     if just_finished_ads() then
-      log("INFO: Post-ads music started - skipping to avoid crossfade remnant")
+      log("INFO: Post-ads music track started (fresh, no crossfade)")
       just_finished_ads := false
-      # Skip immediately to get the next track fresh
-      src.skip()
     else
       log("INFO: Normal music track started")
     end
   end
 
-  music_raw.on_track(fun(m) -> on_music_track_handler(music_raw, m))
-  music_4m_raw.on_track(fun(m) -> on_music_track_handler(music_4m_raw, m))
+  music_raw.on_track(on_music_track_handler)
+  music_4m_raw.on_track(on_music_track_handler)
 
   # Apply crossfade to music sources
   # This creates a 3-second crossfade where:
@@ -562,8 +559,20 @@ def init_playout_chain()
         fade_start_time := -1.0
         log("INFO: Ads finished, back to music")
 
-        # Don't skip music sources here - they were already skipped when ads started
-        # The post-ads sources (with prefetch=0) will fetch fresh tracks when selected
+        # Aggressively skip music sources to clear any buffered crossfaded tracks
+        # Skip the RAW sources multiple times to ensure fresh tracks
+        thread.run(delay=0.1, fun() -> begin
+          log("INFO: Clearing buffered crossfaded tracks after ads")
+          if current_loop() == "J" or current_loop() == "K" or current_loop() == "H" or current_loop() == "I" then
+            music_4m_raw.skip()
+            thread.run(delay=0.05, fun() -> music_4m_raw.skip())
+            thread.run(delay=0.1, fun() -> music_4m_raw.skip())
+          else
+            music_raw.skip()
+            thread.run(delay=0.05, fun() -> music_raw.skip())
+            thread.run(delay=0.1, fun() -> music_raw.skip())
+          end
+        end)
       end
     end
   end)
