@@ -276,8 +276,10 @@ def init_playout_chain()
 
   # Music sources with automatic crossfading
   # Create raw dynamic sources that fetch tracks from the API
-  music_raw = request.dynamic(id="music", prefetch=1, {add_track("music")})
-  music_4m_raw = request.dynamic(id="4minutesmusic", prefetch=1, {add_track("4minutesmusic")})
+  # CRITICAL: Use prefetch=0 to prevent buffering tracks during ads
+  # This allows us to get fresh tracks without crossfade after ads finish
+  music_raw = request.dynamic(id="music", prefetch=0, {add_track("music")})
+  music_4m_raw = request.dynamic(id="4minutesmusic", prefetch=0, {add_track("4minutesmusic")})
 
   # Variable to track if we just came from ads
   just_finished_ads = ref(false)
