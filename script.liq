@@ -282,6 +282,24 @@ def init_playout_chain()
   # Variable to track if we just came from ads
   just_finished_ads = ref(false)
 
+  # Track when music starts playing - attach to RAW sources before crossfade
+  # If just_finished_ads flag is set, skip immediately to get a fresh track without crossfade remnants
+  def on_music_track_handler(src, _)
+    current_source_type := "music"
+
+    if just_finished_ads() then
+      log("INFO: Post-ads music started - skipping to avoid crossfade remnant")
+      just_finished_ads := false
+      # Skip immediately to get the next track fresh
+      src.skip()
+    else
+      log("INFO: Normal music track started")
+    end
+  end
+
+  music_raw.on_track(fun(m) -> on_music_track_handler(music_raw, m))
+  music_4m_raw.on_track(fun(m) -> on_music_track_handler(music_4m_raw, m))
+
   # Apply crossfade to music sources
   # This creates a 3-second crossfade where:
   # - Old track fades out over 3 seconds
@@ -351,24 +369,6 @@ def init_playout_chain()
     end)
   end
   ads.on_track(skip_music_on_ad_or_ad)
-  
-  # Track when music starts playing
-  # If just_finished_ads flag is set, skip immediately to get a fresh track without crossfade remnants
-  def on_music_track_handler(src, _)
-    current_source_type := "music"
-
-    if just_finished_ads() then
-      log("INFO: Post-ads music started - skipping to avoid crossfade remnant")
-      just_finished_ads := false
-      # Skip immediately to get the next track fresh
-      src.skip()
-    else
-      log("INFO: Normal music track started")
-    end
-  end
-
-  music.on_track(fun(m) -> on_music_track_handler(music, m))
-  music_4m.on_track(fun(m) -> on_music_track_handler(music_4m, m))
 
   # Determine current music source based on loop type
   current_music_source = switch(track_sensitive=false, [
