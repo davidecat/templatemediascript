@@ -320,17 +320,27 @@ def init_playout_chain()
   music_raw_no_cf.on_track(on_music_no_cf_track)
   music_4m_raw_no_cf.on_track(on_music_4m_no_cf_track)
 
-  # Inner switches with track_sensitive=true
-  # These re-evaluate predicates only at track boundaries
-  # When flag is true, select non-crossfaded; otherwise select crossfaded
-  music_inner = switch(track_sensitive=true, [
-    ({just_finished_ads()}, music_raw_no_cf),
-    ({true}, music_crossfaded)
+  # Use fallback with dynamic availability based on flag
+  # When just_finished_ads is true, only non-crossfaded source is available
+  # When just_finished_ads is false, only crossfaded source is available
+
+  # Make sources available only when their condition is true
+  music_no_cf_available = source.available(music_raw_no_cf, {just_finished_ads()})
+  music_4m_no_cf_available = source.available(music_4m_raw_no_cf, {just_finished_ads()})
+
+  music_crossfaded_available = source.available(music_crossfaded, {not just_finished_ads()})
+  music_4m_crossfaded_available = source.available(music_4m_crossfaded, {not just_finished_ads()})
+
+  # Fallback that tries non-crossfaded first (only available when flag is true)
+  # Then falls back to crossfaded (only available when flag is false)
+  music_inner = fallback(track_sensitive=true, [
+    music_no_cf_available,
+    music_crossfaded_available
   ])
 
-  music_4m_inner = switch(track_sensitive=true, [
-    ({just_finished_ads()}, music_4m_raw_no_cf),
-    ({true}, music_4m_crossfaded)
+  music_4m_inner = fallback(track_sensitive=true, [
+    music_4m_no_cf_available,
+    music_4m_crossfaded_available
   ])
 
   # Increase prefetch for ads to give processing chain more initialization time
@@ -381,17 +391,24 @@ def init_playout_chain()
   def skip_music_on_ad_or_ad(_)
     # Mark that we're playing ads
     current_source_type := "ads"
-    # CRITICAL: Skip the crossfaded sources to prevent them from buffering
-    # This ensures when we come back from ads, they won't have pre-buffered tracks
-    thread.run(delay=0.5, fun() -> begin
-      log("INFO: Flushing crossfaded sources to prevent buffering during ads")
-      # Skip both crossfaded sources multiple times to clear their buffers
+    # CRITICAL: Aggressively skip crossfaded sources multiple times
+    # This ensures they don't buffer during ads
+    log("INFO: Flushing crossfaded sources to prevent buffering")
+    music_crossfaded.skip()
+    music_4m_crossfaded.skip()
+
+    # Skip again after delays to prevent re-buffering
+    thread.run(delay=1.0, fun() -> begin
       music_crossfaded.skip()
       music_4m_crossfaded.skip()
-      thread.run(delay=0.1, fun() -> begin
-        music_crossfaded.skip()
-        music_4m_crossfaded.skip()
-      end)
+    end)
+    thread.run(delay=2.0, fun() -> begin
+      music_crossfaded.skip()
+      music_4m_crossfaded.skip()
+    end)
+    thread.run(delay=5.0, fun() -> begin
+      music_crossfaded.skip()
+      music_4m_crossfaded.skip()
     end)
   end
   ads.on_track(skip_music_on_ad_or_ad)
@@ -586,14 +603,14 @@ def init_playout_chain()
 
         play_ads_now := false
         fade_start_time := -1.0
-        log("INFO: Ads finished, back to music")
 
-        # CRITICAL: Skip the inner switches to force them to re-evaluate and select non-crossfaded source
-        thread.run(delay=0.1, fun() -> begin
-          log("INFO: Forcing inner switches to re-select source after ads")
-          music_inner.skip()
-          music_4m_inner.skip()
-        end)
+        # CRITICAL: Skip the inner switches IMMEDIATELY to force them to re-evaluate
+        # This must happen BEFORE the outer switch transitions back to music
+        log("INFO: Forcing inner switches to re-select source after ads")
+        music_inner.skip()
+        music_4m_inner.skip()
+
+        log("INFO: Ads finished, back to music")
       end
     end
   end)
