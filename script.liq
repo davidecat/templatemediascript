@@ -279,6 +279,10 @@ def init_playout_chain()
   music_raw = request.dynamic(id="music", prefetch=1, {add_track("music")})
   music_4m_raw = request.dynamic(id="4minutesmusic", prefetch=1, {add_track("4minutesmusic")})
 
+  # Create additional raw sources for post-ads playback (to avoid clock conflicts)
+  music_post_ads = request.dynamic(id="music_post_ads", prefetch=1, {add_track("music")})
+  music_4m_post_ads = request.dynamic(id="4minutesmusic_post_ads", prefetch=1, {add_track("4minutesmusic")})
+
   # Apply crossfade to music sources
   # This creates a 3-second crossfade where:
   # - Old track fades out over 3 seconds
@@ -363,10 +367,10 @@ def init_playout_chain()
   music_4m.on_track(on_music_track)
 
   # Determine current music source based on loop type
-  # Use raw sources (without crossfade) immediately after ads to avoid old track remnants
+  # Use separate raw sources (without crossfade) immediately after ads to avoid old track remnants
   current_music_source = switch(track_sensitive=false, [
-    ({just_finished_ads() and (current_loop() == "J" or current_loop() == "K" or current_loop() == "H" or current_loop() == "I")}, music_4m_raw),
-    ({just_finished_ads()}, music_raw),
+    ({just_finished_ads() and (current_loop() == "J" or current_loop() == "K" or current_loop() == "H" or current_loop() == "I")}, music_4m_post_ads),
+    ({just_finished_ads()}, music_post_ads),
     ({current_loop() == "J" or current_loop() == "K" or current_loop() == "H" or current_loop() == "I"}, music_4m),
     ({true}, music)
   ])
