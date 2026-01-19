@@ -280,8 +280,9 @@ def init_playout_chain()
   music_4m_raw = request.dynamic(id="4minutesmusic", prefetch=1, {add_track("4minutesmusic")})
 
   # Create additional raw sources for post-ads playback (to avoid clock conflicts)
-  music_post_ads = request.dynamic(id="music_post_ads", prefetch=1, {add_track("music")})
-  music_4m_post_ads = request.dynamic(id="4minutesmusic_post_ads", prefetch=1, {add_track("4minutesmusic")})
+  # Use prefetch=0 so they only fetch fresh tracks when needed (after ads)
+  music_post_ads = request.dynamic(id="music_post_ads", prefetch=0, {add_track("music")})
+  music_4m_post_ads = request.dynamic(id="4minutesmusic_post_ads", prefetch=0, {add_track("4minutesmusic")})
 
   # Apply crossfade to music sources
   # This creates a 3-second crossfade where:
@@ -343,14 +344,16 @@ def init_playout_chain()
     # Mark that we're playing ads
     current_source_type := "ads"
     # We wait for the transition to finish before skipping
-    # Skip multiple times to clear crossfade buffer
+    # Skip multiple times to clear crossfade buffer and also clear post-ads sources
     thread.run(delay=0.5, fun() -> begin
       log("INFO: Flushing music background for fresh restart")
       if current_loop() == "J" or current_loop() == "K" or current_loop() == "H" or current_loop() == "I" then
         music_4m.skip()
+        music_4m_post_ads.skip()
         thread.run(delay=0.1, fun() -> music_4m.skip())
       else
         music.skip()
+        music_post_ads.skip()
         thread.run(delay=0.1, fun() -> music.skip())
       end
     end)
@@ -559,14 +562,12 @@ def init_playout_chain()
         just_finished_ads := true
         log("INFO: Ads finished, back to music")
 
-        # Skip ALL music sources to ensure fresh track starts
-        # This clears any crossfade buffer and forces post-ads sources to fetch new tracks
+        # Skip crossfaded music sources to clear their buffers
+        # Post-ads sources were already skipped when ads started, so they're clean
         if current_loop() == "J" or current_loop() == "K" or current_loop() == "H" or current_loop() == "I" then
           music_4m.skip()
-          music_4m_post_ads.skip()
         else
           music.skip()
-          music_post_ads.skip()
         end
       end
     end
