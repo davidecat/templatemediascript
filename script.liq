@@ -292,11 +292,11 @@ def init_playout_chain()
   music_4m_raw.on_track(on_music_track_handler)
 
   # Apply crossfade to music sources
-  # Use a shorter crossfade duration (1 second) to minimize post-ads crossfade
-  # While we can't completely eliminate the crossfade after ads due to Liquidsoap's buffering,
-  # a 1-second crossfade is much less noticeable than 3 seconds
-  music = crossfade(fade_in=0.0, fade_out=1.0, duration=1.0, music_raw)
-  music_4m = crossfade(fade_in=0.0, fade_out=1.0, duration=1.0, music_4m_raw)
+  # Use a very short crossfade duration (0.1 seconds) to minimize post-ads crossfade
+  # This provides a barely noticeable smooth transition between music tracks
+  # while keeping post-ads crossfade remnant minimal
+  music = crossfade(fade_in=0.0, fade_out=0.1, duration=0.1, music_raw)
+  music_4m = crossfade(fade_in=0.0, fade_out=0.1, duration=0.1, music_4m_raw)
 
   # Increase prefetch for ads to give processing chain more initialization time
   ads = request.dynamic(id="ads", prefetch=1, {add_track("ad")})
