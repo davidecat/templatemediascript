@@ -402,13 +402,23 @@ def init_playout_chain()
   music_4m_post_ads.on_track(on_post_ads_music_track)
 
   # Determine current music source based on loop type
-  # Use separate raw sources (without crossfade) immediately after ads to avoid old track remnants
-  # track_sensitive=false allows immediate switching when just_finished_ads changes
-  current_music_source = switch(track_sensitive=false, [
-    ({just_finished_ads() and (current_loop() == "J" or current_loop() == "K" or current_loop() == "H" or current_loop() == "I")}, music_4m_post_ads),
-    ({just_finished_ads()}, music_post_ads),
-    ({current_loop() == "J" or current_loop() == "K" or current_loop() == "H" or current_loop() == "I"}, music_4m),
-    ({true}, music)
+  # Gate post-ads sources - only available when just_finished_ads is true
+  # This forces fallback to re-route immediately when the flag changes
+  music_post_ads_gated = source.available(music_post_ads, {just_finished_ads()})
+  music_4m_post_ads_gated = source.available(music_4m_post_ads, {just_finished_ads()})
+
+  # Use fallback to prefer post-ads sources when available, else use crossfaded
+  current_music_source = fallback(track_sensitive=false, [
+    # Try post-ads sources first (available only when flag=true)
+    (switch(track_sensitive=false, [
+      ({current_loop() == "J" or current_loop() == "K" or current_loop() == "H" or current_loop() == "I"}, music_4m_post_ads_gated),
+      ({true}, music_post_ads_gated)
+    ])),
+    # Fallback to crossfaded sources when post-ads not available
+    (switch(track_sensitive=false, [
+      ({current_loop() == "J" or current_loop() == "K" or current_loop() == "H" or current_loop() == "I"}, music_4m),
+      ({true}, music)
+    ]))
   ])
 
   # Ad Scheduler using specific predicates for all loops including J and K
