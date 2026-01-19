@@ -289,9 +289,9 @@ def init_playout_chain()
   music_4m_crossfaded = crossfade(fade_in=0.0, fade_out=3.0, duration=3.0, music_4m_raw)
 
   # Sources without crossfade (for post-ads clean start)
-  # Use prefetch=0 to avoid buffering - fetch on demand
-  music_raw_no_cf = request.dynamic(id="music_no_cf", prefetch=0, {add_track("music")})
-  music_4m_raw_no_cf = request.dynamic(id="4minutesmusic_no_cf", prefetch=0, {add_track("4minutesmusic")})
+  # Use prefetch=1 so they have tracks ready when needed
+  music_raw_no_cf = request.dynamic(id="music_no_cf", prefetch=1, {add_track("music")})
+  music_4m_raw_no_cf = request.dynamic(id="4minutesmusic_no_cf", prefetch=1, {add_track("4minutesmusic")})
 
   # Track handlers for crossfaded sources
   def on_music_crossfaded_track(_)
@@ -333,14 +333,17 @@ def init_playout_chain()
 
   # Fallback that tries non-crossfaded first (only available when flag is true)
   # Then falls back to crossfaded (only available when flag is false)
+  # Add blank as final safety fallback to prevent stream failure
   music_inner = fallback(track_sensitive=true, [
     music_no_cf_available,
-    music_crossfaded_available
+    music_crossfaded_available,
+    blank()
   ])
 
   music_4m_inner = fallback(track_sensitive=true, [
     music_4m_no_cf_available,
-    music_4m_crossfaded_available
+    music_4m_crossfaded_available,
+    blank()
   ])
 
   # Increase prefetch for ads to give processing chain more initialization time
@@ -391,13 +394,16 @@ def init_playout_chain()
   def skip_music_on_ad_or_ad(_)
     # Mark that we're playing ads
     current_source_type := "ads"
-    # CRITICAL: Aggressively skip crossfaded sources multiple times
-    # This ensures they don't buffer during ads
-    log("INFO: Flushing crossfaded sources to prevent buffering")
+    # CRITICAL: Skip crossfaded sources AND skip non-crossfaded sources
+    # Crossfaded: prevent buffering during ads
+    # Non-crossfaded: clear them so they don't have old tracks when needed
+    log("INFO: Flushing all music sources")
     music_crossfaded.skip()
     music_4m_crossfaded.skip()
+    music_raw_no_cf.skip()
+    music_4m_raw_no_cf.skip()
 
-    # Skip again after delays to prevent re-buffering
+    # Skip crossfaded again after delays to prevent re-buffering during ads
     thread.run(delay=1.0, fun() -> begin
       music_crossfaded.skip()
       music_4m_crossfaded.skip()
