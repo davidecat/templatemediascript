@@ -588,15 +588,14 @@ def init_playout_chain()
     else
       # Reset when ads finish
       if play_ads_now() then
+        # CRITICAL: Set post-ads flag BEFORE resetting play_ads_now
+        # This ensures the flag is already true when the switch evaluates
+        just_finished_ads := true
+        log("INFO: Post-ads source activated")
+
         play_ads_now := false
         fade_start_time := -1.0
-        log("INFO: Ads finished, switching to post-ads source in 0.2s")
-
-        # Small delay to let post-ads source prepare before setting flag
-        thread.run(delay=0.2, fun() -> begin
-          just_finished_ads := true
-          log("INFO: Post-ads source activated")
-        end)
+        log("INFO: Ads finished, back to music")
 
         # Don't skip music sources here - they were already skipped when ads started
         # The post-ads sources (with prefetch=0) will fetch fresh tracks when selected
