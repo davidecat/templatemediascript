@@ -320,8 +320,9 @@ def init_playout_chain()
   music_raw_no_cf.on_track(on_music_no_cf_track)
   music_4m_raw_no_cf.on_track(on_music_4m_no_cf_track)
 
-  # Inner switches with track_sensitive=true to select between crossfaded/non-crossfaded
-  # These only re-evaluate at track boundaries
+  # Inner switches with track_sensitive=true
+  # These re-evaluate predicates only at track boundaries
+  # When flag is true, select non-crossfaded; otherwise select crossfaded
   music_inner = switch(track_sensitive=true, [
     ({just_finished_ads()}, music_raw_no_cf),
     ({true}, music_crossfaded)
@@ -587,8 +588,12 @@ def init_playout_chain()
         fade_start_time := -1.0
         log("INFO: Ads finished, back to music")
 
-        # With prefetch=0, sources will fetch fresh tracks on demand
-        # No need to skip - there's nothing buffered
+        # CRITICAL: Skip the inner switches to force them to re-evaluate and select non-crossfaded source
+        thread.run(delay=0.1, fun() -> begin
+          log("INFO: Forcing inner switches to re-select source after ads")
+          music_inner.skip()
+          music_4m_inner.skip()
+        end)
       end
     end
   end)
