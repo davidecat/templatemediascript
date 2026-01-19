@@ -368,14 +368,32 @@ def init_playout_chain()
   end
 
   # Track when post-ads music starts playing
-  def on_post_ads_music_track(_)
+  def on_post_ads_music_track(metadata)
     current_source_type := "music"
     log("INFO: Post-ads music track started")
-    # Reset flag after a delay to ensure this track plays completely
-    thread.run(delay=1.0, fun() -> begin
-      just_finished_ads := false
-      log("INFO: Post-ads transition complete, resuming normal crossfade")
-    end)
+
+    # Get track duration - try from next_track_duration first, then metadata, then default
+    track_dur = null.get(default=0.0, next_track_duration())
+    track_dur = if track_dur <= 0.0 then
+      float_of_string(default=180.0, metadata["duration"])
+    else
+      track_dur
+    end
+
+    # Reset flag after the track finishes playing (subtract 1s buffer)
+    reset_delay = track_dur - 1.0
+    if reset_delay > 0.0 then
+      thread.run(delay=reset_delay, fun() -> begin
+        just_finished_ads := false
+        log("INFO: Post-ads track nearly complete, will resume crossfade on next track")
+      end)
+    else
+      # Fallback: reset after 30 seconds if duration unknown
+      thread.run(delay=30.0, fun() -> begin
+        just_finished_ads := false
+        log("INFO: Post-ads transition complete (fallback timer), resuming normal crossfade")
+      end)
+    end
   end
 
   music.on_track(on_crossfade_music_track)
@@ -385,8 +403,8 @@ def init_playout_chain()
 
   # Determine current music source based on loop type
   # Use separate raw sources (without crossfade) immediately after ads to avoid old track remnants
-  # track_sensitive=true ensures switch waits for track boundaries before changing sources
-  current_music_source = switch(track_sensitive=true, [
+  # track_sensitive=false allows immediate switching when just_finished_ads changes
+  current_music_source = switch(track_sensitive=false, [
     ({just_finished_ads() and (current_loop() == "J" or current_loop() == "K" or current_loop() == "H" or current_loop() == "I")}, music_4m_post_ads),
     ({just_finished_ads()}, music_post_ads),
     ({current_loop() == "J" or current_loop() == "K" or current_loop() == "H" or current_loop() == "I"}, music_4m),
@@ -572,11 +590,15 @@ def init_playout_chain()
       if play_ads_now() then
         play_ads_now := false
         fade_start_time := -1.0
-        just_finished_ads := true
-        log("INFO: Ads finished, back to music")
+        log("INFO: Ads finished, switching to post-ads source in 0.2s")
+
+        # Small delay to let post-ads source prepare before setting flag
+        thread.run(delay=0.2, fun() -> begin
+          just_finished_ads := true
+          log("INFO: Post-ads source activated")
+        end)
 
         # Don't skip music sources here - they were already skipped when ads started
-        # Skipping here can interfere with the switch routing to post-ads sources
         # The post-ads sources (with prefetch=0) will fetch fresh tracks when selected
       end
     end
