@@ -279,6 +279,8 @@ def init_playout_chain()
 
   # Variable to track if we just came from ads
   just_finished_ads = ref(false)
+  # Counter for post-ads tracks (reset after one track)
+  post_ads_track_count = ref(0)
 
   # Sources with crossfade (for normal music-to-music transitions)
   music_raw = request.dynamic(id="music", prefetch=1, {add_track("music")})
@@ -307,21 +309,14 @@ def init_playout_chain()
     current_source_type := "music"
     log("INFO: Post-ads music track started (no crossfade)")
 
-    # Use the globally stored duration from add_track()
-    # Get duration with fallback to 180.0 if not available
-    dur = next_track_duration() ?? 180.0
-    log("INFO: Post-ads track duration: #{dur}s, will reset flag when track finishes")
+    # Increment counter
+    post_ads_track_count := post_ads_track_count() + 1
+    log("INFO: Post-ads track ##{post_ads_track_count()}")
 
-    # Schedule flag reset just before track ends
-    if dur > 5.0 then
-      reset_delay = dur - 3.0  # Reset 3 seconds before track ends to allow smooth transition
-      thread.run(delay=reset_delay, fun() -> begin
-        log("INFO: Post-ads track finishing soon, re-enabling crossfade")
-        just_finished_ads := false
-      end)
-    else
-      # For very short tracks, reset immediately
-      log("WARNING: Post-ads track too short (#{dur}s), resetting flag immediately")
+    # After the FIRST post-ads track starts, reset the flag
+    # This allows the SECOND track to use crossfade
+    if post_ads_track_count() >= 1 then
+      log("INFO: First post-ads track playing, will enable crossfade for next track")
       just_finished_ads := false
     end
   end
@@ -330,21 +325,14 @@ def init_playout_chain()
     current_source_type := "music"
     log("INFO: Post-ads 4m music track started (no crossfade)")
 
-    # Use the globally stored duration from add_track()
-    # Get duration with fallback to 180.0 if not available
-    dur = next_track_duration() ?? 180.0
-    log("INFO: Post-ads 4m track duration: #{dur}s, will reset flag when track finishes")
+    # Increment counter
+    post_ads_track_count := post_ads_track_count() + 1
+    log("INFO: Post-ads 4m track ##{post_ads_track_count()}")
 
-    # Schedule flag reset just before track ends
-    if dur > 5.0 then
-      reset_delay = dur - 3.0  # Reset 3 seconds before track ends to allow smooth transition
-      thread.run(delay=reset_delay, fun() -> begin
-        log("INFO: Post-ads 4m track finishing soon, re-enabling crossfade")
-        just_finished_ads := false
-      end)
-    else
-      # For very short tracks, reset immediately
-      log("WARNING: Post-ads 4m track too short (#{dur}s), resetting flag immediately")
+    # After the FIRST post-ads track starts, reset the flag
+    # This allows the SECOND track to use crossfade
+    if post_ads_track_count() >= 1 then
+      log("INFO: First post-ads 4m track playing, will enable crossfade for next track")
       just_finished_ads := false
     end
   end
@@ -426,6 +414,10 @@ def init_playout_chain()
   def skip_music_on_ad_or_ad(_)
     # Mark that we're playing ads
     current_source_type := "ads"
+
+    # Reset the post-ads track counter when ads start
+    post_ads_track_count := 0
+
     # CRITICAL: Skip crossfaded sources AND skip non-crossfaded sources
     # Crossfaded: prevent buffering during ads
     # Non-crossfaded: clear them so they don't have old tracks when needed
