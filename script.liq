@@ -282,27 +282,26 @@ def init_playout_chain()
   # Counter for post-ads tracks (reset after one track)
   post_ads_track_count = ref(0)
 
-  # Sources with crossfade (for normal music-to-music transitions)
+  # Music sources - NO crossfade (tracks play back-to-back with no overlap)
   music_raw = request.dynamic(id="music", prefetch=1, {add_track("music")})
   music_4m_raw = request.dynamic(id="4minutesmusic", prefetch=1, {add_track("4minutesmusic")})
 
-  # Apply 3-second crossfade for smooth music-to-music transitions
-  music_crossfaded = crossfade(fade_in=0.0, fade_out=3.0, duration=3.0, music_raw)
-  music_4m_crossfaded = crossfade(fade_in=0.0, fade_out=3.0, duration=3.0, music_4m_raw)
+  # Alias for compatibility with existing code (no crossfade applied)
+  music_crossfaded = music_raw
+  music_4m_crossfaded = music_4m_raw
 
-  # Sources without crossfade (for post-ads clean start)
-  # Use prefetch=1 so they have tracks ready when needed
+  # Sources for post-ads (same as regular - no crossfade)
   music_raw_no_cf = request.dynamic(id="music_no_cf", prefetch=1, {add_track("music")})
   music_4m_raw_no_cf = request.dynamic(id="4minutesmusic_no_cf", prefetch=1, {add_track("4minutesmusic")})
 
-  # Track handlers for crossfaded sources
-  def on_music_crossfaded_track(_)
+  # Track handlers for music sources
+  def on_music_track(_)
     current_source_type := "music"
-    log("INFO: Music track started (crossfaded)")
+    log("INFO: Music track started")
   end
 
-  music_raw.on_track(on_music_crossfaded_track)
-  music_4m_raw.on_track(on_music_crossfaded_track)
+  music_raw.on_track(on_music_track)
+  music_4m_raw.on_track(on_music_track)
 
   # Track handlers for non-crossfaded sources
   def on_music_no_cf_track(m)
