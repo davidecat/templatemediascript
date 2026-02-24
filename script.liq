@@ -21,7 +21,7 @@ settings.log.file.path := "/home/oooomedia/liq_scripts/logs/#{user_id()}.log"
 music_log = playlog(duration=3600.)
 ads_log = playlog(duration=3600.)
 current_loop = ref("")
-base_uri = ref("https://stagingtm.displayer25.com/api/"^user_id())
+base_uri = ref("https://templatemedia.displayer25.com/api/"^user_id())
 played_ad_count = ref(0)
 last_skip_block = ref(-1)
 last_skip_loop = ref("")
@@ -166,7 +166,7 @@ end
 
 def fetch_prayer_times()
   try
-    result = http.get("https://stagingtm.displayer25.com/api/prayer")
+    result = http.get("https://templatemedia.displayer25.com/api/prayer")
     let json.parse (j: {status: int, data: [{starttime: string, endtime: string}]}) = result
     if j.status == 200 then prayer_times := j.data end
   catch err do log("ERROR: Prayer fetch failed: #{err}") end
