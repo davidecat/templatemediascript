@@ -4,16 +4,20 @@
 #                           LIQUIDSOAP SCHEDULER SCRIPT                       #
 ################################################################################
 
+
 # Parse command line arguments
+# argv(1): user_id (required)
+# argv(2): sanctum bearer token (optional; recommended for multi-user secure mode)
 user_id = ref(argv(default="fail", 1))
+api_token = ref(argv(default="", 2))
 
 if user_id() == "fail" then
   shutdown()
 end
 
 # Configuration
-settings.init.daemon.set(bool_of_string(argv(default="true", 2)))
-settings.init.daemon.pidfile.path.set("/home/oooomedia/liq_scripts/pids/#{user_id()}.pid")
+#settings.init.daemon.set(bool_of_string(argv(default="true", 2)))
+#settings.init.daemon.pidfile.path.set("/home/oooomedia/liq_scripts/pids/#{user_id()}.pid")
 settings.log.file := true
 settings.log.file.path := "/home/oooomedia/liq_scripts/logs/#{user_id()}.log"
 
@@ -117,16 +121,16 @@ def apply_eq_to_stream(source)
   else
     try
       preset_params = get_eq_preset_params(eq_preset())
-      
+
       # Calculate overall gain adjustment based on preset
       # Focus on the most important frequency ranges for radio
       bass_gain = (list.nth(preset_params, 0) + list.nth(preset_params, 1) + list.nth(preset_params, 2)) / 3.0
       mid_gain = (list.nth(preset_params, 3) + list.nth(preset_params, 4) + list.nth(preset_params, 5) + list.nth(preset_params, 6)) / 4.0
       high_gain = (list.nth(preset_params, 7) + list.nth(preset_params, 8) + list.nth(preset_params, 9)) / 3.0
-      
+
       # Apply overall tonal adjustment
       total_gain = (bass_gain * 0.3) + (mid_gain * 0.4) + (high_gain * 0.3)
-      
+
       # Apply EQ using basic amplification based on preset
       if total_gain != 0.0 then
         # Apply gentle gain adjustment (max ±3dB)
@@ -164,9 +168,22 @@ def test_eq_availability()
   end
 end
 
+def http_get_with_auth(uri)
+  if api_token() != "" then
+    try
+      http.get(uri, headers=[("Authorization", "Bearer "^api_token())])
+    catch err do
+      log("WARNING: Authenticated GET failed for #{uri}: #{err}. Retrying without auth header.")
+      http.get(uri)
+    end
+  else
+    http.get(uri)
+  end
+end
+
 def fetch_prayer_times()
   try
-    result = http.get("https://stagingtm.displayer25.com/api/prayer")
+    result = http_get_with_auth("https://stagingtm.displayer25.com/api/prayer")
     let json.parse (j: {status: int, data: [{starttime: string, endtime: string}]}) = result
     if j.status == 200 then prayer_times := j.data end
   catch err do log("ERROR: Prayer fetch failed: #{err}") end
@@ -201,7 +218,7 @@ def is_prayer_time()
 end
 
 def api_call(uri)
-  result = http.get(uri)
+  result = http_get_with_auth(uri)
   log("DEBUG API Response from #{uri}: #{result}")
   let json.parse (j: {status: int, data: {icecast: {host: string, port: string, user: string, pass: string, mount: string, bitrate: string}, loop: string, asset_path: string}}) = result
   j
@@ -215,7 +232,7 @@ def add_track(stream)
   if stream == "ad" then
     log("INFO: Prefetching ad file: #{j.data.asset_path}")
   end
-  
+
   # Get duration of the file
   duration = 0.0
   try
@@ -269,7 +286,7 @@ def init_playout_chain()
   icecast_user := j_init.data.icecast.user
   icecast_pass := j_init.data.icecast.pass
   fetch_prayer_times()
-  
+
   # Initialize EQ system
   test_eq_availability()
   load_eq_preset()
@@ -367,7 +384,7 @@ def init_playout_chain()
 
   # Increase prefetch for ads to give processing chain more initialization time
   ads = request.dynamic(id="ads", prefetch=1, {add_track("ad")})
-  
+
   # Apply moderate processing to ads for consistent loudness without distortion
   # First apply moderate compression to even out dynamics
   #ads = compress.exponential(mu=1.0, ads)
@@ -381,7 +398,7 @@ def init_playout_chain()
   # Function to check if we're approaching ad time
   def seconds_until_ads()
     time_in_hour = (time.utc().min * 60 + time.utc().sec) mod 3600
-    
+
     # Get all ad times based on current loop
     ad_times = if current_loop() == "A" or current_loop() == "B" or current_loop() == "J" or current_loop() == "K" then
       [240, 255, 270, 285, 540, 555, 570, 585, 840, 855, 870, 885,
@@ -393,19 +410,19 @@ def init_playout_chain()
        1440, 1460, 1480, 1740, 1760, 1780, 2040, 2060, 2080, 2340, 2360, 2380,
        2640, 2660, 2680, 2940, 2960, 2980, 3240, 3260, 3280, 3540, 3560, 3580]
     elsif current_loop() == "D" then
-      [540, 560, 580, 1140, 1160, 1180, 1740, 1760, 1780, 
+      [540, 560, 580, 1140, 1160, 1180, 1740, 1760, 1780,
        2340, 2360, 2380, 2940, 2960, 2980, 3540, 3560, 3580]
     elsif current_loop() == "E" then
       [840, 860, 880, 1740, 1760, 1780, 2640, 2660, 2680, 3540, 3560, 3580]
     else
       []
     end
-    
+
     # Find the next ad time
-    next_ad = list.fold(fun(acc, t) -> 
+    next_ad = list.fold(fun(acc, t) ->
       if t > time_in_hour and (acc < 0 or t < acc) then t else acc end,
       -1, ad_times)
-    
+
     if next_ad > 0 then next_ad - time_in_hour else -1 end
   end
 
@@ -580,39 +597,39 @@ def init_playout_chain()
  # ============================================================================
   # AUDIO ENHANCEMENT
   # ============================================================================
-  
+
   # Apply different processing to music and ads to maintain ad loudness
-  
+
   # Process music without crossfade first
   processed_music = current_music_source
   #processed_music = compress.exponential(mu=1.0, processed_music)
-  #bypass normalisation 
+  #bypass normalisation
   #processed_music = compress.exponential(mu=1.0, processed_music)
   # Create the final stream with processed music and pre-processed ads
   # Ads already have amplification, compression, normalization, and limiting applied
   #processed_music = limit(threshold=-12.0, attack=0.001, release=0.05, processed_music)
   # Create a smart music source that fades out before ads
   # We'll monitor the time and apply fade/silence when ads are about to start
-  
+
   # Variables for transition control
   play_ads_now = ref(false)
   fade_start_time = ref(-1.0)
-  
+
   # Thread to monitor ad timing and control transitions
   thread.run(every=0.1, fun() -> begin
     secs_to_ads = seconds_until_ads()
-    
+
     # Log timing
     if secs_to_ads >= 0 and secs_to_ads <= 10 then
       log("DEBUG: Seconds until ads: #{secs_to_ads}, fade_start: #{fade_start_time()}")
     end
-    
+
     # Start fade 2 seconds before ads
     if secs_to_ads >= 0 and secs_to_ads <= 2 and fade_start_time() < 0.0 then
       fade_start_time := time.up()
       log("CRITICAL: Starting fade, ads in #{secs_to_ads} seconds")
     end
-    
+
     # Switch to ads when ready and fade complete
     if source.is_ready(ad_selector) then
       if not play_ads_now() and fade_start_time() >= 0.0 then
@@ -643,7 +660,7 @@ def init_playout_chain()
       end
     end
   end)
-  
+
   # Crossfade is now handled by the cross() function applied to music sources
   # Create static quieter versions of current music for fading out before ads
   music_90 = add(weights=[0.9, 0.1], [processed_music, blank()])
@@ -674,7 +691,7 @@ def init_playout_chain()
     # Normal state (with automatic crossfading between tracks handled by cross() function)
     ({true}, processed_music)
   ])
-  
+
   # Main switch without any transitions to avoid glitches
   radio_stream = switch(track_sensitive=false,
     [
@@ -682,7 +699,7 @@ def init_playout_chain()
       ({true}, smart_music)
     ]
   )
-  
+
   log("INFO: Separate audio processing applied - music normalized, ads pre-processed")
 
 
@@ -695,7 +712,7 @@ def init_playout_chain()
   # ============================================================================
   # EQUALIZER APPLICATION
   # ============================================================================
-  
+
   # Apply EQ to final output (after all processing, before Icecast)
   final_radio_eq = apply_eq_to_stream(final_radio)
   #final_radio_eq = final_radio
@@ -766,7 +783,7 @@ def req_eq_preset_get(_, res)
     "\"available_presets\":[\"flat\",\"vocal_boost\",\"bass_heavy\",\"bright\",\"warm\",\"radio_classic\",\"pop\",\"rock\",\"classical\"]," ^
     "\"eq_available\":#{string_of(eq_available())}" ^
     "}"
-  
+
   res.status_code(200)
   res.content_type("application/json")
   res.status_message(eq_json)
@@ -776,7 +793,7 @@ end
 def req_eq_preset_post(req, res)
   # Get preset from query parameter
   preset = req.query.preset
-  
+
   if preset == "" then
     res.status_code(400)
     res.content_type("application/json")
@@ -785,16 +802,16 @@ def req_eq_preset_post(req, res)
     # Valid preset, update and save
     eq_preset := preset
     save_eq_preset()
-    
+
     log("INFO: EQ preset changed to: #{preset}")
-    
+
     # Return success response
     success_json = "{" ^
       "\"status\":\"success\"," ^
       "\"message\":\"EQ preset changed to #{preset}\"," ^
       "\"current_preset\":\"#{preset}\"" ^
       "}"
-    
+
     res.status_code(200)
     res.content_type("application/json")
     res.status_message(success_json)
@@ -804,7 +821,7 @@ def req_eq_preset_post(req, res)
       "\"error\":\"Invalid preset: #{preset}\"," ^
       "\"available_presets\":[\"flat\",\"vocal_boost\",\"bass_heavy\",\"bright\",\"warm\",\"radio_classic\",\"pop\",\"rock\",\"classical\"]" ^
       "}"
-    
+
     res.status_code(400)
     res.content_type("application/json")
     res.status_message(error_json)
@@ -842,6 +859,11 @@ harbor.http.register(port=7000, method="GET", "/eq_preset_#{user_id()}", req_eq_
 #harbor.http.register(port=7000, method="POST", "/eq_preset_#{user_id()}", req_eq_preset_post)
 
 log("INFO: HTTP endpoints registered on port 7000")
+if api_token() != "" then
+  log("INFO: Liquidsoap API auth mode: Bearer token enabled")
+else
+  log("WARNING: Liquidsoap API auth mode: token missing, running in legacy unauthenticated mode")
+end
 log("INFO: Available endpoints:")
 log("INFO:   - GET /restart_#{user_id()} - Restart playout chain")
 log("INFO:   - GET /shutdown_#{user_id()} - Shutdown script")
