@@ -321,7 +321,7 @@ def init_playout_chain()
   music_4m_raw.on_track(on_music_track)
 
   # Track handlers for non-crossfaded sources
-  def on_music_no_cf_track(m)
+  def on_music_no_cf_track(_)
     current_source_type := "music"
     log("INFO: Post-ads music track started (no crossfade)")
 
@@ -337,7 +337,7 @@ def init_playout_chain()
     end
   end
 
-  def on_music_4m_no_cf_track(m)
+  def on_music_4m_no_cf_track(_)
     current_source_type := "music"
     log("INFO: Post-ads 4m music track started (no crossfade)")
 
