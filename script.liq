@@ -30,7 +30,7 @@ played_ad_count = ref(0)
 last_skip_block = ref(-1)
 last_skip_loop = ref("")
 prayer_times = ref([])
-prayer_enabled = ref(false)
+prayer_enabled = ref(true)
 current_source_type = ref("music")
 next_track_duration = ref(0.0)
 
@@ -726,7 +726,7 @@ def init_playout_chain()
   out = output.icecast(%mp3(bitrate=int_of_string(icecast_bitrate())),
     host=icecast_host(), port=icecast_port(), mount=icecast_mount(),
     user=icecast_user(), password=icecast_pass(),
-    fallible=true, final_output)
+    fallible=false, final_output)
 
   ice_shutdown := [out.shutdown]
 end
