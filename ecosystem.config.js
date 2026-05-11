@@ -1,20 +1,37 @@
-/** PM2 process file for Liquidsoap (staging/prod). */
+/** PM2 process file for multi-user Liquidsoap (staging/prod). */
+function liqApp({ name, userId, controlPort, tokenEnvVar }) {
+  return {
+    name,
+    cwd: "/home/oooomedia/liq_scripts",
+    script: "/home/oooomedia/liq_scripts/pm2-start.sh",
+    interpreter: "bash",
+    autorestart: true,
+    max_restarts: 50,
+    min_uptime: "5s",
+    env: {
+      LIQ_BIN: "/usr/bin/liquidsoap",
+      SCRIPT: "/home/oooomedia/liq_scripts/script.liq",
+      LIQ_USER_ID: String(userId),
+      LIQ_CONTROL_PORT: String(controlPort),
+      // Export this env var before PM2 start/restart.
+      LIQ_API_TOKEN: process.env[tokenEnvVar] || "",
+    },
+  };
+}
+
 module.exports = {
   apps: [
-    {
-      name: "liquidsoap-radio",
-      cwd: "/home/oooomedia/liq_scripts",
-      script: "/home/oooomedia/liq_scripts/pm2-start.sh",
-      interpreter: "bash",
-      autorestart: true,
-      max_restarts: 50,
-      min_uptime: "5s",
-      env: {
-        LIQ_BIN: "/usr/bin/liquidsoap",
-        SCRIPT: "/home/oooomedia/liq_scripts/script.liq",
-        LIQ_USER_ID: "user1",
-        LIQ_DAEMONIZE: "false",
-      },
-    },
+    liqApp({
+      name: "liquidsoap-user-1",
+      userId: 1,
+      controlPort: 7001,
+      tokenEnvVar: "LIQ_TOKEN_USER_1",
+    }),
+    liqApp({
+      name: "liquidsoap-user-9",
+      userId: 9,
+      controlPort: 7009,
+      tokenEnvVar: "LIQ_TOKEN_USER_9",
+    }),
   ],
 };
