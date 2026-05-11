@@ -308,6 +308,19 @@ def init_playout_chain()
   icecast_bitrate := string.replace(pattern="k", (fun(_) -> ""), j_init.data.icecast.bitrate)
   icecast_user := j_init.data.icecast.user
   icecast_pass := j_init.data.icecast.pass
+
+  # Multi-user safety: never publish two encoders to the same Icecast mount.
+  # If API returns the same mount for different `user_id`, the last connected source wins
+  # and the other station goes silent.
+  mount_from_api = icecast_mount()
+  mount_suffix = "_"^user_id()
+  if not string.contains(substring=mount_suffix, mount_from_api) then
+    icecast_mount := mount_from_api^mount_suffix
+    log("INFO: Icecast mount adjusted for multi-user isolation: #{mount_from_api} -> #{icecast_mount()}")
+  else
+    log("INFO: Icecast mount already user-scoped: #{mount_from_api}")
+  end
+
   fetch_prayer_times()
 
   # Initialize EQ system

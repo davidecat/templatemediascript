@@ -20,26 +20,19 @@ function liqApp({ name, liqUserId, controlPort, tokenEnvVar }) {
   };
 }
 
-const apps = [
-  liqApp({
-    name: "liquidsoap-user-1",
-    liqUserId: "user1",
-    controlPort: 7001,
-    tokenEnvVar: "LIQ_TOKEN_USER_1",
-  }),
-];
-
-// Optional second station: only start if explicitly enabled.
-// This avoids PM2 crash-loops when the API user/mount isn't provisioned yet.
-if (process.env.LIQ_ENABLE_USER_9 === "1") {
-  apps.push(
+module.exports = {
+  apps: [
+    liqApp({
+      name: "liquidsoap-user-1",
+      liqUserId: "user1",
+      controlPort: 7001,
+      tokenEnvVar: "LIQ_TOKEN_USER_1",
+    }),
     liqApp({
       name: "liquidsoap-user-9",
       liqUserId: "user9",
       controlPort: 7009,
       tokenEnvVar: "LIQ_TOKEN_USER_9",
-    })
-  );
-}
-
-module.exports = { apps };
+    }),
+  ],
+};
