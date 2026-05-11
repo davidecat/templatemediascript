@@ -30,7 +30,7 @@ played_ad_count = ref(0)
 last_skip_block = ref(-1)
 last_skip_loop = ref("")
 prayer_times = ref([])
-prayer_enabled = ref(true)
+prayer_enabled = ref(false)
 current_source_type = ref("music")
 next_track_duration = ref(0.0)
 
