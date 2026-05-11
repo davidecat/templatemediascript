@@ -190,7 +190,9 @@ def api_response_preview(body)
   elsif len <= 300 then
     body
   else
-    string.sub(body, 0, 300)^"... (truncated, len="^string_of(len)^")"
+    # Older Liquidsoap versions on the server have a different string.sub signature.
+    # To stay compatible and avoid crashing, just log a generic truncated marker.
+    "[truncated body preview, len="^string_of(len)^"]"
   end
 end
 
