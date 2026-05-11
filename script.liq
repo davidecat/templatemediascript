@@ -235,7 +235,7 @@ def api_call(uri)
   log("DEBUG API Response from #{uri}: #{result}")
   if string.length(string.trim(result)) == 0 then
     log("ERROR: Empty API response from #{uri} (check URL, auth token, TLS/DNS).")
-    error("API empty response: "^uri)
+    failwith("API empty response: "^uri)
   end
   try
     let json.parse (j: {status: int, data: {icecast: {host: string, port: string, user: string, pass: string, mount: string, bitrate: string}, loop: string, asset_path: string}}) = result
@@ -243,7 +243,7 @@ def api_call(uri)
   catch err do
     log("ERROR: Non-JSON API response from #{uri}: #{err}")
     log("ERROR: Body preview: #{api_response_preview(result)}")
-    error("API JSON parse failed: "^uri)
+    failwith("API JSON parse failed: "^uri)
   end
 end
 
