@@ -190,7 +190,7 @@ def api_response_preview(body)
   elsif len <= 300 then
     body
   else
-    string.sub(body, 0, 300)^"... (truncated, len="^string_of(len)^")"
+    string.sub(body, start=0, length=300)^"... (truncated, len="^string_of(len)^")"
   end
 end
 
