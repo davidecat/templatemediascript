@@ -183,6 +183,17 @@ def http_get_with_auth(uri)
   end
 end
 
+def api_response_preview(body)
+  len = string.length(body)
+  if len == 0 then
+    "[empty body]"
+  elsif len <= 300 then
+    body
+  else
+    string.sub(body, 0, 300)^"... (truncated, len="^string_of(len)^")"
+  end
+end
+
 def fetch_prayer_times()
   try
     result = http_get_with_auth("https://stagingtm.displayer25.com/api/prayer")
@@ -222,8 +233,18 @@ end
 def api_call(uri)
   result = http_get_with_auth(uri)
   log("DEBUG API Response from #{uri}: #{result}")
-  let json.parse (j: {status: int, data: {icecast: {host: string, port: string, user: string, pass: string, mount: string, bitrate: string}, loop: string, asset_path: string}}) = result
-  j
+  if string.length(string.trim(result)) == 0 then
+    log("ERROR: Empty API response from #{uri} (check URL, auth token, TLS/DNS).")
+    error("API empty response: "^uri)
+  end
+  try
+    let json.parse (j: {status: int, data: {icecast: {host: string, port: string, user: string, pass: string, mount: string, bitrate: string}, loop: string, asset_path: string}}) = result
+    j
+  catch err do
+    log("ERROR: Non-JSON API response from #{uri}: #{err}")
+    log("ERROR: Body preview: #{api_response_preview(result)}")
+    error("API JSON parse failed: "^uri)
+  end
 end
 
 def add_track(stream)

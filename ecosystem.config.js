@@ -1,5 +1,5 @@
 /** PM2 process file for multi-user Liquidsoap (staging/prod). */
-function liqApp({ name, userId, controlPort, tokenEnvVar }) {
+function liqApp({ name, liqUserId, controlPort, tokenEnvVar }) {
   return {
     name,
     cwd: "/home/oooomedia/liq_scripts",
@@ -11,7 +11,8 @@ function liqApp({ name, userId, controlPort, tokenEnvVar }) {
     env: {
       LIQ_BIN: "/usr/bin/liquidsoap",
       SCRIPT: "/home/oooomedia/liq_scripts/script.liq",
-      LIQ_USER_ID: String(userId),
+      // Must match API path segment after /api/ (e.g. user1, not 1)
+      LIQ_USER_ID: String(liqUserId),
       LIQ_CONTROL_PORT: String(controlPort),
       // Export this env var before PM2 start/restart.
       LIQ_API_TOKEN: process.env[tokenEnvVar] || "",
@@ -19,19 +20,26 @@ function liqApp({ name, userId, controlPort, tokenEnvVar }) {
   };
 }
 
-module.exports = {
-  apps: [
-    liqApp({
-      name: "liquidsoap-user-1",
-      userId: 1,
-      controlPort: 7001,
-      tokenEnvVar: "LIQ_TOKEN_USER_1",
-    }),
+const apps = [
+  liqApp({
+    name: "liquidsoap-user-1",
+    liqUserId: "user1",
+    controlPort: 7001,
+    tokenEnvVar: "LIQ_TOKEN_USER_1",
+  }),
+];
+
+// Optional second station: only start if explicitly enabled.
+// This avoids PM2 crash-loops when the API user/mount isn't provisioned yet.
+if (process.env.LIQ_ENABLE_USER_9 === "1") {
+  apps.push(
     liqApp({
       name: "liquidsoap-user-9",
-      userId: 9,
+      liqUserId: "user9",
       controlPort: 7009,
       tokenEnvVar: "LIQ_TOKEN_USER_9",
-    }),
-  ],
-};
+    })
+  );
+}
+
+module.exports = { apps };
