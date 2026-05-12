@@ -505,7 +505,8 @@ def init_playout_chain()
   #  ({current_loop() == "J" or current_loop() == "K" or current_loop() == "H" or current_loop() == "I"}, music_4m_inner),
   #  ({true}, music_inner)
   #])
-  current_music_source = music_inner
+  #current_music_source = music_inner
+  current_music_source = single("https://stagingtm.displayer25.com/uploads/assets/music/music/3331ef748090df7f674538d23d929283.mp3")
 
   # Ad Scheduler using specific predicates for all loops including J and K
   ad_selector = switch(track_sensitive=true, all_predicates=true, [
@@ -745,10 +746,12 @@ def init_playout_chain()
 
 
   # Prayer Time Integration
-  final_radio = switch(track_sensitive=false, [
-    ({prayer_mute_enabled() and prayer_enabled() and is_prayer_time()}, blank(duration=2.0)),
-    ({true}, radio_stream)
-  ])
+  
+  #final_radio = switch(track_sensitive=false, [
+  #  ({prayer_mute_enabled() and prayer_enabled() and is_prayer_time()}, blank(duration=2.0)),
+  #  ({true}, radio_stream)
+  #])
+  final_radio = radio_stream
 
   # ============================================================================
   # EQUALIZER APPLICATION
