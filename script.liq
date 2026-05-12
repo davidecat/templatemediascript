@@ -501,10 +501,11 @@ def init_playout_chain()
 
   # Outer switch with track_sensitive=false for immediate ads switching
   # Uses inner switches which handle crossfade selection
-  current_music_source = switch(track_sensitive=false, [
-    ({current_loop() == "J" or current_loop() == "K" or current_loop() == "H" or current_loop() == "I"}, music_4m_inner),
-    ({true}, music_inner)
-  ])
+  #current_music_source = switch(track_sensitive=false, [
+  #  ({current_loop() == "J" or current_loop() == "K" or current_loop() == "H" or current_loop() == "I"}, music_4m_inner),
+  #  ({true}, music_inner)
+  #])
+  current_music_source = music_inner
 
   # Ad Scheduler using specific predicates for all loops including J and K
   ad_selector = switch(track_sensitive=true, all_predicates=true, [
