@@ -758,10 +758,13 @@ def init_playout_chain()
   # ============================================================================
 
   # Apply EQ to final output (after all processing, before Icecast)
-  final_radio_eq = apply_eq_to_stream(final_radio)
+  #final_radio_eq = apply_eq_to_stream(final_radio)
   #final_radio_eq = final_radio
   log("INFO: EQ processing applied to final output")
-  final_output = final_radio_eq
+  #final_output = final_radio_eq
+
+  final_output = final_radio
+
   # Apply final normalization to ensure consistent output levels
   #final_output = normalize(target=-6., window=0.01, gain_min=-10., gain_max=6., final_radio_eq)
   log("INFO: Final normalization applied to output")
