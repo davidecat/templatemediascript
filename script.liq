@@ -506,7 +506,8 @@ def init_playout_chain()
   #  ({true}, music_inner)
   #])
   #current_music_source = music_inner
-  current_music_source = single("https://stagingtm.displayer25.com/uploads/assets/music/music/3331ef748090df7f674538d23d929283.mp3")
+  #current_music_source = single("https://stagingtm.displayer25.com/uploads/assets/music/music/3331ef748090df7f674538d23d929283.mp3")
+  current_music_source = mksafe(single("https://stagingtm.displayer25.com/uploads/assets/music/music/3331ef748090df7f674538d23d929283.mp3"))
 
   # Ad Scheduler using specific predicates for all loops including J and K
   ad_selector = switch(track_sensitive=true, all_predicates=true, [
