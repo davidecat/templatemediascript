@@ -478,24 +478,26 @@ def init_playout_chain()
     # Crossfaded: prevent buffering during ads
     # Non-crossfaded: clear them so they don't have old tracks when needed
     log("INFO: Flushing all music sources")
-    music_crossfaded.skip()
-    music_4m_crossfaded.skip()
-    music_raw_no_cf.skip()
-    music_4m_raw_no_cf.skip()
+    
+    #music_crossfaded.skip()
+    #music_4m_crossfaded.skip()
+    #music_raw_no_cf.skip()
+    #music_4m_raw_no_cf.skip()
 
     # Skip crossfaded again after delays to prevent re-buffering during ads
-    thread.run(delay=1.0, fun() -> begin
-      music_crossfaded.skip()
-      music_4m_crossfaded.skip()
-    end)
-    thread.run(delay=2.0, fun() -> begin
-      music_crossfaded.skip()
-      music_4m_crossfaded.skip()
-    end)
-    thread.run(delay=5.0, fun() -> begin
-      music_crossfaded.skip()
-      music_4m_crossfaded.skip()
-    end)
+    #thread.run(delay=1.0, fun() -> begin
+    #  music_crossfaded.skip()
+    #  music_4m_crossfaded.skip()
+    #end)
+    #thread.run(delay=2.0, fun() -> begin
+    #  music_crossfaded.skip()
+    #  music_4m_crossfaded.skip()
+    #end)
+    #thread.run(delay=5.0, fun() -> begin
+    #  music_crossfaded.skip()
+    #  music_4m_crossfaded.skip()
+    #end)
+
   end
   ads.on_track(skip_music_on_ad_or_ad)
 
