@@ -340,16 +340,32 @@ def init_playout_chain()
   post_ads_track_count = ref(0)
 
   # Music sources - NO crossfade (tracks play back-to-back with no overlap)
-  music_raw = request.dynamic(id="music", prefetch=1, {add_track("music")})
-  music_4m_raw = request.dynamic(id="4minutesmusic", prefetch=1, {add_track("4minutesmusic")})
+  #music_raw = request.dynamic(id="music", prefetch=1, {add_track("music")})
+  #music_4m_raw = request.dynamic(id="4minutesmusic", prefetch=1, {add_track("4minutesmusic")})
+
+  music_raw = mksafe(
+    request.dynamic(id="music", prefetch=2, {add_track("music")})
+  )
+
+  music_4m_raw = mksafe(
+    request.dynamic(id="4minutesmusic", prefetch=2, {add_track("4minutesmusic")})
+  )
 
   # Alias for compatibility with existing code (no crossfade applied)
   music_crossfaded = music_raw
   music_4m_crossfaded = music_4m_raw
 
   # Sources for post-ads (same as regular - no crossfade)
-  music_raw_no_cf = request.dynamic(id="music_no_cf", prefetch=1, {add_track("music")})
-  music_4m_raw_no_cf = request.dynamic(id="4minutesmusic_no_cf", prefetch=1, {add_track("4minutesmusic")})
+  #music_raw_no_cf = request.dynamic(id="music_no_cf", prefetch=1, {add_track("music")})
+  #music_4m_raw_no_cf = request.dynamic(id="4minutesmusic_no_cf", prefetch=1, {add_track("4minutesmusic")})
+
+  music_raw_no_cf = mksafe(
+    request.dynamic(id="music_no_cf", prefetch=2, {add_track("music")})
+  )
+
+  music_4m_raw_no_cf = mksafe(
+    request.dynamic(id="4minutesmusic_no_cf", prefetch=2, {add_track("4minutesmusic")})
+  )
 
   # Track handlers for music sources
   def on_music_track(_)
@@ -484,30 +500,31 @@ def init_playout_chain()
     music_4m_raw_no_cf.skip()
 
     # Skip crossfaded again after delays to prevent re-buffering during ads
-    thread.run(delay=1.0, fun() -> begin
-      music_crossfaded.skip()
-      music_4m_crossfaded.skip()
-    end)
-    thread.run(delay=2.0, fun() -> begin
-      music_crossfaded.skip()
-      music_4m_crossfaded.skip()
-    end)
-    thread.run(delay=5.0, fun() -> begin
-      music_crossfaded.skip()
-      music_4m_crossfaded.skip()
-    end)
+    #thread.run(delay=1.0, fun() -> begin
+    #  music_crossfaded.skip()
+    #  music_4m_crossfaded.skip()
+    #end)
+    #thread.run(delay=2.0, fun() -> begin
+    #  music_crossfaded.skip()
+    #  music_4m_crossfaded.skip()
+    #end)
+    #thread.run(delay=5.0, fun() -> begin
+    #  music_crossfaded.skip()
+    #  music_4m_crossfaded.skip()
+    #end)
+
   end
   ads.on_track(skip_music_on_ad_or_ad)
 
   # Outer switch with track_sensitive=false for immediate ads switching
   # Uses inner switches which handle crossfade selection
-  #current_music_source = switch(track_sensitive=false, [
-  #  ({current_loop() == "J" or current_loop() == "K" or current_loop() == "H" or current_loop() == "I"}, music_4m_inner),
-  #  ({true}, music_inner)
-  #])
+  current_music_source = switch(track_sensitive=false, [
+    ({current_loop() == "J" or current_loop() == "K" or current_loop() == "H" or current_loop() == "I"}, music_4m_inner),
+    ({true}, music_inner)
+  ])
   #current_music_source = music_inner
   #current_music_source = single("https://stagingtm.displayer25.com/uploads/assets/music/music/3331ef748090df7f674538d23d929283.mp3")
-  current_music_source = mksafe(single("https://stagingtm.displayer25.com/uploads/assets/music/music/3331ef748090df7f674538d23d929283.mp3"))
+  #current_music_source = mksafe(single("https://stagingtm.displayer25.com/uploads/assets/music/music/3331ef748090df7f674538d23d929283.mp3"))
 
   # Ad Scheduler using specific predicates for all loops including J and K
   ad_selector = switch(track_sensitive=true, all_predicates=true, [
