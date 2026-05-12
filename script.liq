@@ -9,9 +9,11 @@
 # argv(1): user_id (required)
 # argv(2): sanctum bearer token (optional; recommended for multi-user secure mode)
 # argv(3): control port for Harbor HTTP endpoints (optional; default 7000)
+# argv(4): prayer mute enable flag ("1" to enable, default disabled for safety)
 user_id = ref(argv(default="fail", 1))
 api_token = ref(argv(default="", 2))
 control_port = ref(int_of_string(default=7000, argv(default="7000", 3)))
+prayer_mute_enabled = ref(argv(default="0", 4) == "1")
 
 if user_id() == "fail" then
   shutdown()
@@ -743,7 +745,7 @@ def init_playout_chain()
 
   # Prayer Time Integration
   final_radio = switch(track_sensitive=false, [
-    ({prayer_enabled() and is_prayer_time()}, blank(duration=2.0)),
+    ({prayer_mute_enabled() and prayer_enabled() and is_prayer_time()}, blank(duration=2.0)),
     ({true}, radio_stream)
   ])
 
@@ -878,6 +880,7 @@ def req_health(_, res)
     "\"icecast_mount\":\"#{icecast_mount()}\"," ^
     "\"prayer_times_count\":#{list.length(prayer_times())}," ^
     "\"prayer_enabled\":#{string_of(prayer_enabled())}," ^
+    "\"prayer_mute_enabled\":#{string_of(prayer_mute_enabled())}," ^
     "\"is_prayer_time\":#{is_prayer_time()}," ^
     "\"eq_preset\":\"#{eq_preset()}\"," ^
     "\"eq_available\":#{string_of(eq_available())}" ^
