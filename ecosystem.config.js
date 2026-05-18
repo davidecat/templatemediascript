@@ -13,8 +13,6 @@ module.exports = {
           LIQ_BIN: "/usr/bin/liquidsoap",
           SCRIPT: "/home/oooomedia/liq_scripts/script.liq",
           LIQ_USER_ID: "user1",
-          LIQ_CONTROL_PORT: "7001",
-          LIQ_API_TOKEN: "",
         },
       },
     ],

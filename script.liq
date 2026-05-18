@@ -12,8 +12,15 @@ if user_id() == "fail" then
   shutdown()
 end
 
-# Configuration
-settings.init.daemon.set(bool_of_string(argv(default="true", 2)))
+# Configuration (argv(2): true/false; empty -> false for PM2/foreground)
+daemon_arg = argv(default="true", 2)
+daemon_on =
+  if daemon_arg == "false" or daemon_arg == "0" or daemon_arg == "no" or daemon_arg == "" then
+    false
+  else
+    true
+  end
+settings.init.daemon.set(daemon_on)
 settings.init.daemon.pidfile.path.set("/home/oooomedia/liq_scripts/pids/#{user_id()}.pid")
 settings.log.file := true
 settings.log.file.path := "/home/oooomedia/liq_scripts/logs/#{user_id()}.log"
