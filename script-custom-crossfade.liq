@@ -350,22 +350,22 @@ def init_playout_chain()
     if next_ad > 0 then next_ad - time_in_hour else -1 end
   end
 
-  # Skip Logic: Clears the background music while ads are playing
+  # Drops the partial pre-ad track from the active music source so the next
+  # track starts fresh. Called when ads finish (see post-ads branch below):
+  # skipping only works while a source is being pulled, which is true again
+  # once we switch back to music, but not while ads are playing.
+  def flush_music_source()
+    log("INFO: Flushing music background for fresh restart")
+    if current_loop() == "J" or current_loop() == "K" or current_loop() == "H" or current_loop() == "I" then
+      music_4m.skip()
+    else
+      music.skip()
+    end
+  end
+
+  # Mark that we're playing ads (the actual music flush happens at ad end).
   def skip_music_on_ad_or_ad(_)
-    # Mark that we're playing ads
     current_source_type := "ads"
-    # We wait for the transition to finish before skipping
-    # Skip multiple times to clear crossfade buffer
-    thread.run(delay=0.5, fun() -> begin
-      log("INFO: Flushing music background for fresh restart")
-      if current_loop() == "J" or current_loop() == "K" or current_loop() == "H" or current_loop() == "I" then
-        music_4m.skip()
-        thread.run(delay=0.1, fun() -> music_4m.skip())
-      else
-        music.skip()
-        thread.run(delay=0.1, fun() -> music.skip())
-      end
-    end)
   end
   ads.on_track(skip_music_on_ad_or_ad)
 
@@ -560,8 +560,10 @@ def init_playout_chain()
         fade_start_time := -1.0
         log("INFO: Ads finished, back to music")
 
-        # With prefetch=0, sources will fetch fresh tracks on demand
-        # No need to skip - there's nothing buffered
+        # Drop the partial pre-ad track now that the music source is being
+        # pulled again, so the next track starts cleanly with no leftover frame.
+        flush_music_source()
+        current_source_type := "music"
       end
     end
   end)
