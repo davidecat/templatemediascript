@@ -299,12 +299,16 @@ def init_playout_chain()
   music_raw.on_track(on_music_track_handler)
   music_4m_raw.on_track(on_music_track_handler)
 
-  # Apply crossfade to music sources
-  # Use a very short crossfade duration (0.5 second) to minimize post-ads crossfade
-  # This provides a barely noticeable smooth transition between music tracks
-  # while keeping post-ads crossfade remnant minimal
-  music = crossfade(fade_in=0.0, fade_out=0.5, duration=0.1, music_raw)
-  music_4m = crossfade(fade_in=0.0, fade_out=0.5, duration=0.1, music_4m_raw)
+  # NOTE: crossfade was removed to fix the audio glitch heard after the last ad.
+  # The crossfade operator buffers the tail of the current track to overlap it
+  # with the next one. While ads play, the music source is no longer pulled and
+  # that buffered pre-ad tail freezes; the during-ad skip cannot flush a source
+  # that isn't being pulled. When music resumes after the ads, the stale pre-ad
+  # tail is replayed first, producing the glitch.
+  # A short fade.in keeps track-to-track and post-ad re-entry click-free without
+  # retaining any cross-track buffer.
+  music = fade.in(duration=0.15, music_raw)
+  music_4m = fade.in(duration=0.15, music_4m_raw)
 
   # Increase prefetch for ads to give processing chain more initialization time
   ads = request.dynamic(id="ads", prefetch=1, {add_track("ad")})
