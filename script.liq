@@ -38,6 +38,13 @@ prayer_enabled = ref(true)
 current_source_type = ref("music")
 next_track_duration = ref(0.0)
 
+# Rampa di volume all'inizio di ogni traccia musicale (secondi).
+# Portata da claudefix: elimina il click a inizio traccia e al rientro dopo gli
+# ad SENZA bufferizzare nulla tra una traccia e l'altra (a differenza di
+# crossfade(), che era la causa del glitch post-ad).
+# Metti 0.0 per disattivarla.
+music_fade_in = 0.15
+
 # EQ Configuration Variables
 eq_preset = ref("flat")
 eq_config_file = "/home/oooomedia/liq_scripts/configs/#{user_id()}_eq.conf"
@@ -522,6 +529,16 @@ def init_playout_chain()
     ({current_loop() == "J" or current_loop() == "K" or current_loop() == "H" or current_loop() == "I"}, music_4m_inner),
     ({true}, music_inner)
   ])
+
+  # Applicato a valle dello switch: vale sia per la musica normale sia per le
+  # sorgenti post-ad. Le .skip() piu' sotto restano sulle sorgenti sottostanti
+  # (music_inner / music_4m_inner), quindi il flush non e' toccato.
+  current_music_source =
+    if music_fade_in > 0.0 then
+      fade.in(duration=music_fade_in, current_music_source)
+    else
+      current_music_source
+    end
   #current_music_source = music_inner
   #current_music_source = single("https://stagingtm.displayer25.com/uploads/assets/music/music/3331ef748090df7f674538d23d929283.mp3")
   #current_music_source = mksafe(single("https://stagingtm.displayer25.com/uploads/assets/music/music/3331ef748090df7f674538d23d929283.mp3"))
@@ -721,7 +738,9 @@ def init_playout_chain()
     end
   end)
 
-  # Crossfade is now handled by the cross() function applied to music sources
+  # NB: nessun crossfade su questo branch (rimosso in 7f854ee). Le transizioni
+  # traccia-traccia usano solo fade.in sopra; il fade prima degli ad e' gestito
+  # dalle versioni attenuate qui sotto.
   # Create static quieter versions of current music for fading out before ads
   music_90 = add(weights=[0.9, 0.1], [processed_music, blank()])
   music_80 = add(weights=[0.8, 0.2], [processed_music, blank()])
@@ -748,7 +767,7 @@ def init_playout_chain()
     ({fade_start_time() >= 0.0 and time.up() - fade_start_time() >= 0.2}, music_80),
     ({fade_start_time() >= 0.0}, music_90),
 
-    # Normal state (with automatic crossfading between tracks handled by cross() function)
+    # Normal state (nessun crossfade: tracce back-to-back con fade.in in ingresso)
     ({true}, processed_music)
   ])
 
@@ -764,24 +783,29 @@ def init_playout_chain()
 
 
   # Prayer Time Integration
-  
-  #final_radio = switch(track_sensitive=false, [
-  #  ({prayer_mute_enabled() and prayer_enabled() and is_prayer_time()}, blank(duration=2.0)),
-  #  ({true}, radio_stream)
-  #])
-  final_radio = radio_stream
+  # Opt-in: inerte finche' argv(4) != "1" (prayer_mute_enabled), quindi ricollegarlo
+  # non cambia il comportamento di default.
+  final_radio = switch(track_sensitive=false, [
+    ({prayer_mute_enabled() and prayer_enabled() and is_prayer_time()}, blank(duration=2.0)),
+    ({true}, radio_stream)
+  ])
+
+  if prayer_mute_enabled() then
+    log("INFO: Prayer muting ENABLED (argv 4 = 1)")
+  else
+    log("INFO: Prayer muting disabled (opt-in: pass \"1\" as argv 4 to enable)")
+  end
 
   # ============================================================================
   # EQUALIZER APPLICATION
   # ============================================================================
 
   # Apply EQ to final output (after all processing, before Icecast)
-  #final_radio_eq = apply_eq_to_stream(final_radio)
-  #final_radio_eq = final_radio
+  # apply_eq_to_stream() e' un amplify() con guadagno limitato a +/-3dB e
+  # gain_factor vincolato in (0.1, 3.0): non puo' produrre silenzio.
+  final_radio_eq = apply_eq_to_stream(final_radio)
   log("INFO: EQ processing applied to final output")
-  #final_output = final_radio_eq
-
-  final_output = final_radio
+  final_output = final_radio_eq
 
   # Apply final normalization to ensure consistent output levels
   #final_output = normalize(target=-6., window=0.01, gain_min=-10., gain_max=6., final_radio_eq)
