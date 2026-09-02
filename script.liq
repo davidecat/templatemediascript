@@ -249,12 +249,25 @@ def api_call(uri)
     failwith("API empty response: "^uri)
   end
   try
-    let json.parse (j: {status: int, data: {icecast: {host: string, port: string, user: string, pass: string, mount: string, bitrate: string}, loop: string, asset_path: string}}) = result
+    let json.parse (j: {status: int, data: {icecast: {host: string, port: string, user: string, pass: string, mount: string, bitrate: string}, loop: string, asset_path: string, trigger_id: int}}) = result
     j
   catch err do
     log("ERROR: Non-JSON API response from #{uri}: #{err}")
     log("ERROR: Body preview: #{api_response_preview(result)}")
     failwith("API JSON parse failed: "^uri)
+  end
+end
+
+def report_now_playing(m)
+  try
+    tid = list.assoc(default="0", "trigger_id", m)
+    if tid != "0" and tid != "" then
+      uri = "#{base_uri()}/now-playing?trigger_id=#{tid}"
+      ignore(http_get_with_auth(uri))
+      log("INFO: Reported now-playing trigger_id=#{tid}")
+    end
+  catch err do
+    log("WARNING: now-playing report failed: #{err}")
   end
 end
 
@@ -285,21 +298,23 @@ def add_track(stream)
     log("ERROR: Failed to get duration: #{err}")
   end
 
+  trigger_meta = "trigger_id=#{j.data.trigger_id}"
+
   # CRITICAL: Force start at 0.0 and ignore blank skipping
   # For ads, disable autocue completely to avoid any processing delays
   # Add metadata to identify track type and include duration
   track_uri = if stream == "music" or stream == "4minutesmusic" then
     if duration > 0.0 then
-      'annotate:liq_cue_in=0.0,liq_blankskip=0.0,liq_cue_file=false,track_type="music",duration=#{duration}:'^j.data.asset_path
+      'annotate:liq_cue_in=0.0,liq_blankskip=0.0,liq_cue_file=false,track_type="music",duration=#{duration},#{trigger_meta}:'^j.data.asset_path
     else
-      'annotate:liq_cue_in=0.0,liq_blankskip=0.0,liq_cue_file=false,track_type="music":'^j.data.asset_path
+      'annotate:liq_cue_in=0.0,liq_blankskip=0.0,liq_cue_file=false,track_type="music",#{trigger_meta}:'^j.data.asset_path
     end
   else
     # Disable autocue for ads to prevent any initial processing delay
     if duration > 0.0 then
-      'annotate:liq_cue_file=false,track_type="ad",duration=#{duration}:'^j.data.asset_path
+      'annotate:liq_cue_file=false,track_type="ad",duration=#{duration},#{trigger_meta}:'^j.data.asset_path
     else
-      'annotate:liq_cue_file=false,track_type="ad":'^j.data.asset_path
+      'annotate:liq_cue_file=false,track_type="ad",#{trigger_meta}:'^j.data.asset_path
     end
   end
   request.create(track_uri)
@@ -343,6 +358,7 @@ def init_playout_chain()
 
   # Variable to track if we just came from ads
   just_finished_ads = ref(false)
+  ads_flushing = ref(false)
   # Counter for post-ads tracks (reset after one track)
   post_ads_track_count = ref(0)
 
@@ -375,18 +391,24 @@ def init_playout_chain()
   )
 
   # Track handlers for music sources
-  def on_music_track(_)
+  def on_music_track(m)
     current_source_type := "music"
     log("INFO: Music track started")
+    if ads_flushing() then
+      log("INFO: Ignoring music on_track while flushing for ads")
+    else
+      report_now_playing(m)
+    end
   end
 
   music_raw.on_track(on_music_track)
   music_4m_raw.on_track(on_music_track)
 
   # Track handlers for non-crossfaded sources
-  def on_music_no_cf_track(_)
+  def on_music_no_cf_track(m)
     current_source_type := "music"
     log("INFO: Post-ads music track started (no crossfade)")
+    report_now_playing(m)
 
     # Increment counter
     post_ads_track_count := post_ads_track_count() + 1
@@ -400,9 +422,10 @@ def init_playout_chain()
     end
   end
 
-  def on_music_4m_no_cf_track(_)
+  def on_music_4m_no_cf_track(m)
     current_source_type := "music"
     log("INFO: Post-ads 4m music track started (no crossfade)")
+    report_now_playing(m)
 
     # Increment counter
     post_ads_track_count := post_ads_track_count() + 1
@@ -490,9 +513,11 @@ def init_playout_chain()
   end
 
   # Skip Logic: Clears the background music while ads are playing
-  def skip_music_on_ad_or_ad(_)
+  def skip_music_on_ad_or_ad(m)
     # Mark that we're playing ads
     current_source_type := "ads"
+    ads_flushing := true
+    report_now_playing(m)
 
     # Reset the post-ads track counter when ads start
     post_ads_track_count := 0
@@ -519,6 +544,8 @@ def init_playout_chain()
     #  music_crossfaded.skip()
     #  music_4m_crossfaded.skip()
     #end)
+
+    thread.run(delay=6.0, fun() -> ads_flushing := false)
 
   end
   ads.on_track(skip_music_on_ad_or_ad)
