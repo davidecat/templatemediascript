@@ -29,7 +29,7 @@ settings.log.file.path := "/home/oooomedia/liq_scripts/logs/#{user_id()}.log"
 music_log = playlog(duration=3600.)
 ads_log = playlog(duration=3600.)
 current_loop = ref("")
-base_uri = ref("https://stagingtm.displayer25.com/api/"^user_id())
+base_uri = ref("https://templatemediastream.displayer25.com/api/"^user_id())
 played_ad_count = ref(0)
 last_skip_block = ref(-1)
 last_skip_loop = ref("")
@@ -207,7 +207,7 @@ end
 
 def fetch_prayer_times()
   try
-    result = http_get_with_auth("https://stagingtm.displayer25.com/api/prayer")
+    result = http_get_with_auth("https://templatemediastream.displayer25.com/api/prayer")
     let json.parse (j: {status: int, data: [{starttime: string, endtime: string}]}) = result
     if j.status == 200 then prayer_times := j.data end
   catch err do log("ERROR: Prayer fetch failed: #{err}") end
@@ -567,8 +567,8 @@ def init_playout_chain()
       current_music_source
     end
   #current_music_source = music_inner
-  #current_music_source = single("https://stagingtm.displayer25.com/uploads/assets/music/music/3331ef748090df7f674538d23d929283.mp3")
-  #current_music_source = mksafe(single("https://stagingtm.displayer25.com/uploads/assets/music/music/3331ef748090df7f674538d23d929283.mp3"))
+  #current_music_source = single("https://templatemediastream.displayer25.com/uploads/assets/music/music/3331ef748090df7f674538d23d929283.mp3")
+  #current_music_source = mksafe(single("https://templatemediastream.displayer25.com/uploads/assets/music/music/3331ef748090df7f674538d23d929283.mp3"))
 
   # Ad Scheduler using specific predicates for all loops including J and K
   ad_selector = switch(track_sensitive=true, all_predicates=true, [
